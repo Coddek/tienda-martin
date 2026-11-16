@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* Los valores vienen de site.config.ts (ver src/lib/theme.ts y layout.tsx). */
+@theme inline {
+  --color-ink: var(--brand-ink);
+  --color-ink-soft: var(--brand-ink-soft);
+  --color-paper: var(--brand-paper);
+  --color-mint: var(--brand-mint);
+  --color-mint-soft: var(--brand-mint-soft);
+  --color-gold: var(--brand-gold);
+  --color-rust: var(--brand-rust);
+  --font-display: var(--font-display-face), serif;
+  --font-ui: var(--font-ui-face), system-ui, sans-serif;
+}
+
+html {
+  background: var(--brand-ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--brand-ink);
+  color: var(--brand-paper);
+  font-family: var(--font-ui);
+  overflow-x: hidden;
+}
+
+/* Lenis (solo escritorio) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+/* Grano: una baldosa SVG chica que el navegador rasteriza una sola vez. */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+}
+
+/* Halo suave detrás del producto, derivado del color de marca. */
+.stage-glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--brand-mint) 22%, transparent),
+    transparent 72%
+  );
+}
+
+/* Cada letra de un título animado sube desde abajo de su propia máscara. */
+.split-word {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: top;
+  /* aire para que la cursiva y las descendentes no se corten */
+  padding: 0.08em 0.06em 0.14em;
+  margin: -0.08em -0.06em -0.14em;
+}
+.split-char {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Sombra de apoyo bajo el producto (un tono más oscuro que el fondo). */
+.stage-shadow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--brand-ink) 35%, black) 0%,
+    transparent 75%
+  );
+  opacity: 0.75;
+}
