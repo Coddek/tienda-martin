@@ -39,6 +39,8 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
   // undefined = la persona todavía no tocó nada en esta tarjeta.
   const [picked, setPicked] = useState<number | null | undefined>(undefined);
   const [variantIndex, setVariantIndex] = useState(0);
+  // Hasta que llega la foto, la tarjeta muestra un brillo (así no parece vacía).
+  const [loaded, setLoaded] = useState(false);
 
   const preferredAvailable =
     preferredSize != null && product.sizes.some((s) => s.size === preferredSize && s.available);
@@ -63,7 +65,9 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
         <Link
           href={productHref}
           aria-label={`${labels.viewProduct}: ${product.name}`}
-          className="product-tile group relative block aspect-[4/3] overflow-hidden rounded-3xl"
+          className={`product-tile group relative block aspect-[4/3] overflow-hidden rounded-3xl ${
+            loaded ? "" : "tile-loading"
+          }`}
         >
           <span className="tile-shadow absolute inset-x-[16%] bottom-[8%] h-[11%] transition-transform duration-500 group-hover:scale-x-90" />
           <Image
@@ -73,6 +77,7 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
             fill
             sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
             loading={eager ? "eager" : "lazy"}
+            onLoad={() => setLoaded(true)}
             className="object-contain p-7 transition-transform duration-500 ease-out group-hover:-translate-y-2 group-hover:scale-[1.06] group-hover:-rotate-2"
           />
           {product.tag ? (

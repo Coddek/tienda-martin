@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import type { Product } from "@/data/products";
+import { FAVORITES_FILTER, rememberCatalogUrl, useCatalogQuery } from "@/lib/catalogQuery";
 import { useFavorites } from "@/lib/favorites";
 import { ProductCard, type ProductCardLabels } from "./ProductCard";
 
@@ -41,12 +42,20 @@ export function CatalogGrid({
   whatsapp,
   locale,
 }: Props) {
-  // null = todos; "♥" = solo favoritos; cualquier otro valor = esa categoría.
-  const [filter, setFilter] = useState<string | null>(null);
-  const [size, setSize] = useState<number | null>(null);
-  const [sort, setSort] = useState<SortKey>("destacados");
+  // Los filtros viven en la URL (ver catalogQuery): se comparten y vuelven al regresar.
+  const { query, setQuery } = useCatalogQuery();
+  const filter = query.cat; // null = todos; FAVORITES = solo favoritos; otro = esa categoría
+  const size = query.talle;
+  const sort: SortKey =
+    query.orden && query.orden in sortOptions ? (query.orden as SortKey) : "destacados";
+  const setFilter = (cat: string | null) => setQuery({ cat });
+  const setSize = (talle: number | null) => setQuery({ talle });
+  const setSort = (orden: SortKey) => setQuery({ orden: orden === "destacados" ? null : orden });
   const favorites = useFavorites();
-  const FAVORITES = "♥";
+  const FAVORITES = FAVORITES_FILTER;
+
+  // Si la persona abre un producto sin tocar filtros, "Volver" igual sabe a dónde ir.
+  useEffect(() => rememberCatalogUrl(), []);
 
   const visible = products
     .filter(
@@ -80,13 +89,15 @@ export function CatalogGrid({
 
   return (
     <>
-      <div className="sticky top-[60px] z-20 -mx-5 bg-paper px-5 py-3 lg:top-[72px] lg:mx-0 lg:px-0">
+      <div className="sticky top-(--header-h) z-20 -mx-5 bg-paper px-5 py-3 lg:mx-0 lg:px-0">
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
           {chip(allLabel, null)}
           {categories.map((name) => chip(name, name))}
           {chip(`♥ ${favoritesLabels.filter}${favorites.length ? ` (${favorites.length})` : ""}`, FAVORITES)}
         </div>
-        <div className="-mx-5 mt-2 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
+        {/* relative: el texto oculto "Ordenar" (sr-only) queda dentro de la fila y no
+            estira la página hacia la derecha en el celular. */}
+        <div className="relative -mx-5 mt-2 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
           <span className="mr-1 text-xs font-medium tracking-[0.14em] whitespace-nowrap text-ink-soft uppercase">
             {sizeFilterLabel}
           </span>

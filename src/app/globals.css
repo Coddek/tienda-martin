@@ -13,6 +13,41 @@
   --font-ui: var(--font-ui-face), system-ui, sans-serif;
 }
 
+/* Alto del encabezado fijo (SiteHeader): lo usan las barras pegajosas para quedar justo debajo. */
+:root {
+  --header-h: 68px;
+}
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 76px;
+  }
+}
+
+/* Mientras carga la foto de un producto, un brillo recorre la tarjeta. */
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tile-loading::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--brand-paper) 75%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
 html {
   background: var(--brand-ink);
   -webkit-text-size-adjust: 100%;

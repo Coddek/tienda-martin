@@ -77,6 +77,20 @@ export const siteConfig = {
     homeHref: "/",
   },
 
+  /** Página para enlaces rotos o productos que ya no están. */
+  notFound: {
+    eyebrow: "Error 404",
+    title: "No encontramos esta página",
+    body: "Puede que el modelo ya no esté o que el enlace tenga un error. El catálogo está completo y actualizado.",
+    cta: "Ver el catálogo",
+    home: "Ir al inicio",
+  },
+
+  /** Imagen y texto que se ven al compartir el enlace de la portada. */
+  share: {
+    imageAlt: "Martin, calzado femenino",
+  },
+
   /** Botón flotante de WhatsApp (consulta general, sin producto). */
   whatsappFab: {
     label: "Escribinos por WhatsApp",

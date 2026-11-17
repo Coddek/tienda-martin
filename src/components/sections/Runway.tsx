@@ -32,7 +32,12 @@ type Props = {
  */
 export function Runway({ eyebrow, title, items, swipeHint, cta, href }: Props) {
   return (
-    <section data-chapter className="relative pt-[10svh] pb-[10svh] lg:pt-[16svh] lg:pb-[14svh]">
+    // overflow-x-clip: la fila arranca corrida hacia la derecha para animarse; sin
+    // esto estiraba la página más que la pantalla del celular.
+    <section
+      data-chapter
+      className="relative overflow-x-clip pt-[10svh] pb-[10svh] lg:pt-[16svh] lg:pb-[14svh]"
+    >
       <div className="mx-auto max-w-[1500px] px-5 lg:px-10">
         <p
           data-reveal

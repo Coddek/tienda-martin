@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BackToCatalog } from "@/components/catalog/BackToCatalog";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { getProduct, products } from "@/data/products";
@@ -66,12 +67,12 @@ async function ProductContent({ params }: PageProps) {
 
   return (
     <main className="mx-auto max-w-[1300px] px-5 pt-24 pb-28 lg:px-10 lg:pt-32">
-      <Link
-        href={nav.catalogHref}
+      <BackToCatalog
+        fallbackHref={nav.catalogHref}
+        homeAnchor={nav.catalogAnchor}
+        label={catalog.backToCatalog}
         className="text-sm font-medium tracking-[0.12em] text-ink-soft uppercase hover:text-ink"
-      >
-        ← {catalog.backToCatalog}
-      </Link>
+      />
 
       <ProductDetail
         product={product}
