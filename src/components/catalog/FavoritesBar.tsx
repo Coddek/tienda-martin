@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { clearFavorites, removeFavorite, useFavorites } from "@/lib/favorites";
 import { productUrl } from "@/lib/whatsapp";
@@ -47,6 +48,7 @@ type Props = {
 export function FavoritesBar({ products, whatsapp, labels, sizeLabel }: Props) {
   const favorites = useFavorites();
   const dialog = useRef<HTMLDialogElement>(null);
+  const inEditor = usePathname().startsWith("/admin");
   const [confirming, setConfirming] = useState(false);
 
   const items = favorites.flatMap((favorite) => {
@@ -55,7 +57,8 @@ export function FavoritesBar({ products, whatsapp, labels, sizeLabel }: Props) {
   });
 
   // Sin favoritos no hay botón ni panel (si se quita el último, el panel se cierra solo).
-  if (items.length === 0) return null;
+  // En el editor tampoco: ahí no se compra.
+  if (items.length === 0 || inEditor) return null;
 
   const lines = items.map(({ favorite, product }) => {
     const values: Record<string, string> = {

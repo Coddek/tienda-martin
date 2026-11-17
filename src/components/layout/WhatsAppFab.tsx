@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 type Props = {
@@ -22,6 +23,8 @@ export function WhatsAppFab({ label, href }: Props) {
     () => window.scrollY > SHOW_AFTER,
     () => false,
   );
+  // En el editor (/admin) no va: ahí no se consulta, se carga mercadería.
+  if (usePathname().startsWith("/admin")) return null;
 
   return (
     <a

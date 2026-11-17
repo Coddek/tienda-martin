@@ -330,3 +330,151 @@ DROP POLICY IF EXISTS "tienda_fotos_delete" ON storage.objects;
 CREATE POLICY "tienda_fotos_delete" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'tienda-fotos' AND is_usuario_caja((select auth.uid())));
+
+-- ---------- VENTAS DESDE CIERRE CAJA ----------
+
+-- Guarda la venta y descuenta los pares escaneados en un solo paso: si algo
+-- falla (por ejemplo, el día ya está cerrado), no se guarda nada.
+-- p_talles: un elemento por par vendido (si se venden dos iguales, va dos veces).
+CREATE OR REPLACE FUNCTION tienda_registrar_venta(
+  p_fecha DATE,
+  p_monto NUMERIC,
+  p_medio_pago TEXT,
+  p_descripcion TEXT,
+  p_medio_pago_2 TEXT,
+  p_monto_2 NUMERIC,
+  p_talles UUID[]
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_venta UUID;
+  v_talle UUID;
+BEGIN
+  INSERT INTO ventas (fecha, monto, medio_pago, descripcion, medio_pago_2, monto_2)
+  VALUES (p_fecha, p_monto, p_medio_pago, p_descripcion, p_medio_pago_2, p_monto_2)
+  RETURNING id INTO v_venta;
+
+  FOREACH v_talle IN ARRAY COALESCE(p_talles, '{}'::UUID[]) LOOP
+    INSERT INTO tienda_movimientos (talle_id, cantidad, motivo, venta_id)
+    VALUES (v_talle, -1, 'venta', v_venta);
+  END LOOP;
+
+  RETURN v_venta;
+END;
+$$;
+
+-- Si se borra una venta en Cierre Caja, sus pares vuelven al stock. Los que se
+-- vendieron "sin stock" (marcados como diferencia) no se devuelven: nunca se
+-- habían descontado. BEFORE: corre antes de que la clave foránea suelte la venta.
+CREATE OR REPLACE FUNCTION tienda_devolver_pares_de_venta()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO tienda_movimientos (talle_id, cantidad, motivo, nota)
+  SELECT talle_id, -SUM(cantidad), 'devolucion', 'Se borró la venta del ' || to_char(OLD.fecha, 'DD/MM')
+  FROM tienda_movimientos
+  WHERE venta_id = OLD.id AND NOT diferencia
+  GROUP BY talle_id
+  HAVING SUM(cantidad) <> 0;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_tienda_devolver_pares ON ventas;
+CREATE TRIGGER trg_tienda_devolver_pares
+  BEFORE DELETE ON ventas
+  FOR EACH ROW EXECUTE FUNCTION tienda_devolver_pares_de_venta();
+
+REVOKE EXECUTE ON FUNCTION tienda_registrar_venta(DATE, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION tienda_registrar_venta(DATE, NUMERIC, TEXT, TEXT, TEXT, NUMERIC, UUID[]) TO authenticated;
+REVOKE EXECUTE ON FUNCTION tienda_devolver_pares_de_venta() FROM PUBLIC, anon, authenticated;
+
+-- ---------- BÚSQUEDAS PARA CIERRE CAJA ----------
+
+-- Talles de un color con su stock (lo usan las dos búsquedas de abajo).
+CREATE OR REPLACE FUNCTION tienda_talles_de_color(p_color UUID)
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object('id', t.id, 'talle', t.talle_ar, 'talle_br', t.talle_br, 'stock', t.stock)
+      ORDER BY t.talle_ar
+    ),
+    '[]'::jsonb
+  )
+  FROM tienda_talles t
+  WHERE t.color_id = p_color;
+$$;
+
+-- Lo que hace falta para vender un par escaneado: modelo, color, precio, foto
+-- y talles. Null si el código no está cargado. Respeta RLS (SECURITY INVOKER).
+CREATE OR REPLACE FUNCTION tienda_buscar_codigo(p_codigo TEXT)
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'codigo', k.codigo,
+    'talle_id', k.talle_id,
+    'producto', p.nombre,
+    'ref', p.ref,
+    'precio', p.precio,
+    'color', c.nombre,
+    'foto_path', c.foto_path,
+    'talles', tienda_talles_de_color(c.id)
+  )
+  FROM tienda_codigos k
+  JOIN tienda_colores c ON c.id = k.color_id
+  JOIN tienda_productos p ON p.id = c.producto_id
+  WHERE k.codigo = p_codigo;
+$$;
+
+-- Carga manual (caja sin etiqueta): busca por nombre o referencia, con o sin
+-- puntos ("6291.900" o "6291900"). Una fila por color.
+CREATE OR REPLACE FUNCTION tienda_buscar_modelos(p_texto TEXT)
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT COALESCE(jsonb_agg(fila ORDER BY fila->>'producto', fila->>'color'), '[]'::jsonb)
+  FROM (
+    SELECT jsonb_build_object(
+      'codigo', NULL,
+      'talle_id', NULL,
+      'producto', p.nombre,
+      'ref', p.ref,
+      'precio', p.precio,
+      'color', c.nombre,
+      'foto_path', c.foto_path,
+      'talles', tienda_talles_de_color(c.id)
+    ) AS fila
+    FROM tienda_productos p
+    JOIN tienda_colores c ON c.producto_id = p.id
+    WHERE length(trim(p_texto)) >= 2
+      AND (
+        p.nombre ILIKE '%' || trim(p_texto) || '%'
+        OR replace(p.ref, '.', '') ILIKE '%' || replace(trim(p_texto), '.', '') || '%'
+      )
+    LIMIT 20
+  ) resultados;
+$$;
+
+REVOKE EXECUTE ON FUNCTION tienda_talles_de_color(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION tienda_buscar_codigo(TEXT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION tienda_buscar_modelos(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION tienda_talles_de_color(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION tienda_buscar_codigo(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION tienda_buscar_modelos(TEXT) TO authenticated;
