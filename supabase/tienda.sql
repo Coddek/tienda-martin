@@ -109,10 +109,11 @@ AS $$
 DECLARE
   v_stock INTEGER;
 BEGIN
+  -- Quién lo hizo y si hubo diferencia los decide la base, no quien carga:
+  -- así nadie puede anotar un movimiento a nombre de otra persona.
+  NEW.usuario_id := auth.uid();
   SELECT stock INTO v_stock FROM tienda_talles WHERE id = NEW.talle_id FOR UPDATE;
-  IF v_stock + NEW.cantidad < 0 THEN
-    NEW.diferencia := true;
-  END IF;
+  NEW.diferencia := v_stock + NEW.cantidad < 0;
   UPDATE tienda_talles SET stock = GREATEST(v_stock + NEW.cantidad, 0) WHERE id = NEW.talle_id;
   RETURN NEW;
 END;
