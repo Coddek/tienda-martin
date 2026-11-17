@@ -36,6 +36,10 @@ type Step =
   | { kind: "newModel"; code: string }
   | { kind: "done"; text: string };
 
+/** "7900067313927" → "7 900067 313927", como viene impreso en la etiqueta. */
+const formatBarcode = (code: string) =>
+  code.length === 13 ? `${code[0]} ${code.slice(1, 7)} ${code.slice(7)}` : code;
+
 /** El último modelo y color cargados: la caja siguiente suele ser otro talle del mismo. */
 type Last = { productoId: string; colorId: string } | null;
 
@@ -259,9 +263,11 @@ export function NewCodeChoice({
     <Card className="flex flex-col gap-4">
       <div>
         <p className="text-sm font-medium tracking-[0.1em] text-ink-soft uppercase">Código nuevo</p>
-        <p className="mt-1 text-xl tracking-[0.06em]">{code}</p>
-        <p className="mt-2 text-sm text-ink-soft">
-          Es la primera vez que se escanea. Decí de qué modelo es y queda guardado para siempre.
+        {/* Con los mismos espacios que la etiqueta, para comparar de un vistazo. */}
+        <p className="mt-1 font-mono text-2xl tracking-[0.08em]">{formatBarcode(code)}</p>
+        <p className="mt-2 rounded-2xl bg-mint-soft px-4 py-3 text-sm text-ink">
+          <strong>Revisá que coincida con el número de la etiqueta.</strong> Si no coincide, tocá Cancelar y escaneá
+          de nuevo (o tipealo). Es la primera vez que se escanea: decí de qué modelo es y queda guardado para siempre.
         </p>
       </div>
 
@@ -623,7 +629,7 @@ export function NewModel({
     <Card className="flex flex-col gap-5">
       <div>
         <p className="text-sm font-medium tracking-[0.1em] text-ink-soft uppercase">Modelo nuevo</p>
-        <p className="mt-1 text-sm text-ink-soft">Código {code}</p>
+        <p className="mt-1 text-sm text-ink-soft">Código {formatBarcode(code)}</p>
       </div>
       <Field label="Nombre" hint="Cómo lo van a ver en la página. Ej.: Sandalia Paris.">
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClass} />
