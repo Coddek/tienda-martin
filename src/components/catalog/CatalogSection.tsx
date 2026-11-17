@@ -27,6 +27,10 @@ export function CatalogSection({ headingAs: Heading = "h2", className }: Props) 
         </p>
       ) : null}
 
+      {catalog.paymentNote ? (
+        <p className="mt-4 text-sm font-medium text-ink">{catalog.paymentNote}</p>
+      ) : null}
+
       <ol className="mt-6 mb-4 grid gap-3 sm:grid-cols-3">
         {catalog.howToBuy.map((step, i) => (
           <li key={step.title} className="flex gap-4 rounded-2xl bg-mint-soft px-5 py-4">
@@ -46,9 +50,15 @@ export function CatalogSection({ headingAs: Heading = "h2", className }: Props) 
         allLabel={catalog.allLabel}
         sizeFilterLabel={catalog.sizeFilterLabel}
         emptyLabel={catalog.emptyLabel}
+        sortLabel={catalog.sortLabel}
+        sortOptions={catalog.sortOptions}
+        favoritesLabels={catalog.favorites}
         labels={{
           tags: catalog.tags,
           viewProduct: catalog.viewProduct,
+          colorLabel: catalog.colorLabel,
+          addFavorite: catalog.favorites.add,
+          removeFavorite: catalog.favorites.remove,
           sizeLabel: catalog.sizeLabel,
           pickSize: catalog.pickSize,
           soldOut: catalog.soldOut,

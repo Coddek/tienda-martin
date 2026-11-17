@@ -4,32 +4,6 @@
  * imágenes de `public/`. Ningún componente escribe colores ni textos a mano.
  */
 
-export type ShoeImage = {
-  src: string;
-  width: number;
-  height: number;
-  alt: string;
-  /** Texto de la etiqueta cuando la foto no es definitiva. */
-  placeholderLabel?: string;
-};
-
-export type BrandColor = "ink" | "inkSoft" | "paper" | "mint" | "mintSoft" | "gold" | "rust";
-
-export type ChapterContent = {
-  id: string;
-  number: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  /** Color de fondo del capítulo (clave de `colors`). El fondo se funde de uno a otro al scrollear. */
-  background: BrandColor;
-  /** Palabra gigante en contorno que cruza por detrás del zapato. */
-  backdropWord: string;
-  /** De qué lado va el texto en escritorio; el zapato va del otro. */
-  textSide: "left" | "right";
-  shoe: ShoeImage;
-};
-
 export const siteConfig = {
   name: "Martin",
   description:
@@ -79,23 +53,20 @@ export const siteConfig = {
 
   /**
    * Destacados de la portada: lo más vendido, lo que está de moda o lo que haya
-   * en stock. Se cambia acá (más adelante, desde el panel). El primero es el que
-   * aparece en grande al abrirse el isotipo.
+   * en stock. Se cambia acá (más adelante, desde el panel). Aparecen en una
+   * pasarela que se desliza apenas se abre el isotipo.
    */
   featured: {
     eyebrow: "Esta semana",
     title: "Lo más elegido",
-    backdropWord: "Favoritos",
-    background: "ink" satisfies BrandColor,
-    textSide: "left" as "left" | "right",
+    swipeHint: "Deslizá para ver más",
     productIds: [
       "sandalia-nudo-dorada",
-      "zapato-pulsera-plata",
-      "sandalia-lazo-negra",
+      "zapato-pulsera",
+      "sandalia-lazo",
       "botineta-chocolate",
     ],
     cta: "Ver todo el catálogo",
-    placeholderLabel: "Foto de ejemplo · catálogo Vizzano",
   },
 
   nav: {
@@ -138,6 +109,28 @@ export const siteConfig = {
     /** Etiquetas de las tarjetas (clave = `tag` del producto). */
     tags: { nuevo: "Nuevo", ultimos: "Últimos pares", oferta: "Oferta" },
     viewProduct: "Ver detalle",
+    colorLabel: "Color",
+    /** Favoritos: se guardan en el teléfono de la persona y se consultan todos juntos. */
+    favorites: {
+      filter: "Favoritos",
+      add: "Guardar en favoritos",
+      remove: "Quitar de favoritos",
+      consult: "Consultar favoritos",
+      empty: "Todavía no guardaste ningún modelo. Tocá el corazón de los que te gusten.",
+      messageIntro: "Hola Martin! Quiero consultar por estos modelos:",
+      /** Se reemplazan {producto}, {ref} y {talle}. */
+      messageLine: "- {producto} (ref. {ref}), talle {talle}",
+      noSize: "a confirmar",
+    },
+    sortLabel: "Ordenar",
+    sortOptions: {
+      destacados: "Destacados",
+      novedades: "Novedades",
+      menor: "Menor precio",
+      mayor: "Mayor precio",
+    },
+    /** Una línea sobre medios de pago y cambios. Vacío = no se muestra. */
+    paymentNote: "",
     share: "Compartir",
     shared: "Enlace copiado",
     related: "También te puede gustar",

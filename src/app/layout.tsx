@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { siteConfig } from "../../site.config";
+import { FavoritesBar } from "@/components/catalog/FavoritesBar";
 import { WhatsAppFab } from "@/components/layout/WhatsAppFab";
 import { themeVars } from "@/lib/theme";
 import { whatsappLink } from "@/lib/whatsapp";
@@ -33,6 +34,10 @@ export default function RootLayout({
     >
       <body>
         {children}
+        <FavoritesBar
+          whatsapp={siteConfig.contact.whatsapp}
+          labels={siteConfig.catalog.favorites}
+        />
         <WhatsAppFab
           label={siteConfig.whatsappFab.label}
           href={whatsappLink(siteConfig.contact.whatsapp, siteConfig.whatsappFab.message, {})}

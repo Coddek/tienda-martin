@@ -1,33 +1,37 @@
-import type { CSSProperties } from "react";
 import { CatalogSection } from "@/components/catalog/CatalogSection";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { ScrollStory } from "@/components/motion/ScrollStory";
-import { Featured, type FeaturedItem } from "@/components/sections/Featured";
 import { Hero } from "@/components/sections/Hero";
 import { Marquee } from "@/components/sections/Marquee";
+import { Runway, type RunwayItem } from "@/components/sections/Runway";
 import { products } from "@/data/products";
-import { brandVar } from "@/lib/theme";
 import { formatPrice } from "@/lib/whatsapp";
 import { siteConfig } from "../../site.config";
 
 /**
- * Portada corta: logotipo → destacados → catálogo → pie.
+ * Portada corta: logotipo → pasarela de destacados → catálogo → pie.
  * Quien vuelve a comprar toca "Catálogo" arriba y baja directo a la grilla.
  */
 export default function Home() {
-  const { name, nav, hero, wordmark, featured, marquee, footer, contact, locale, preview } =
+  const { name, nav, hero, wordmark, featured, marquee, catalog, footer, contact, locale, preview } =
     siteConfig;
 
-  const items: FeaturedItem[] = featured.productIds.flatMap((id) => {
+  const items: RunwayItem[] = featured.productIds.flatMap((id) => {
     const product = products.find((p) => p.id === id);
     return product
-      ? [{ id, name: product.name, price: formatPrice(product.price, locale), image: product.image }]
+      ? [
+          {
+            id,
+            name: product.name,
+            price: formatPrice(product.price, locale),
+            tag: product.tag ? catalog.tags[product.tag] : undefined,
+            image: product.image,
+          },
+        ]
       : [];
   });
-  const [lead, ...others] = items;
   const catalogHash = `#${nav.catalogAnchor}`;
-  const paper = brandVar("paper");
   const whatsappDigits = contact.whatsapp.replace(/\D/g, "");
 
   return (
@@ -40,12 +44,7 @@ export default function Home() {
         catalogHref={catalogHash}
       />
       <main>
-        <ScrollStory
-          shoes={
-            lead ? [{ ...lead.image, placeholderLabel: preview ? featured.placeholderLabel : undefined }] : []
-          }
-          backdropWords={[featured.backdropWord]}
-        >
+        <ScrollStory>
           <Hero
             eyebrow={hero.eyebrow}
             tagline={hero.tagline}
@@ -53,28 +52,17 @@ export default function Home() {
             wordmarkNote={preview && wordmark.provisional ? wordmark.provisionalLabel : undefined}
             scrollHint={hero.scrollHint}
           />
-          {lead ? (
-            <Featured
-              eyebrow={featured.eyebrow}
-              title={featured.title}
-              lead={lead}
-              others={others.slice(0, 3)}
-              cta={featured.cta}
-              href={catalogHash}
-              backgroundVar={brandVar(featured.background)}
-              textSide={featured.textSide}
-              placeholderLabel={preview ? featured.placeholderLabel : undefined}
-            />
-          ) : null}
+          <Runway
+            eyebrow={featured.eyebrow}
+            title={featured.title}
+            items={items}
+            swipeHint={featured.swipeHint}
+            cta={featured.cta}
+            href={catalogHash}
+          />
           <Marquee words={marquee} />
-          <section
-            id={nav.catalogAnchor}
-            data-closing
-            data-bg={paper}
-            style={{ "--section-bg": `var(${paper})` } as CSSProperties}
-            className="relative scroll-mt-0 bg-(--section-bg) text-ink"
-          >
-            <CatalogSection className="pt-24 pb-24 lg:pt-28" />
+          <section id={nav.catalogAnchor} data-closing className="relative bg-paper text-ink">
+            <CatalogSection className="pt-24 pb-28 lg:pt-28" />
           </section>
         </ScrollStory>
       </main>

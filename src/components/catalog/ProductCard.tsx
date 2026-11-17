@@ -4,12 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { Product, ProductTag } from "@/data/products";
+import { updateFavorite } from "@/lib/favorites";
 import { formatPrice, whatsappLink } from "@/lib/whatsapp";
+import { ColorPicker } from "./ColorPicker";
+import { FavoriteButton } from "./FavoriteButton";
 import { SizePicker } from "./SizePicker";
 
 export type ProductCardLabels = {
   tags: Record<ProductTag, string>;
   viewProduct: string;
+  colorLabel: string;
+  addFavorite: string;
+  removeFavorite: string;
   sizeLabel: string;
   pickSize: string;
   soldOut: string;
@@ -28,50 +34,66 @@ type Props = {
   eager?: boolean;
 };
 
-/** Tarjeta de producto: foto, etiqueta, precio, talles y consulta por WhatsApp con todo precargado. */
+/** Tarjeta de producto: foto, color, precio, talles, favorito y consulta por WhatsApp precargada. */
 export function ProductCard({ product, labels, whatsapp, locale, preferredSize, eager }: Props) {
   // undefined = la persona todavía no tocó nada en esta tarjeta.
   const [picked, setPicked] = useState<number | null | undefined>(undefined);
+  const [variantIndex, setVariantIndex] = useState(0);
+
   const preferredAvailable =
     preferredSize != null && product.sizes.some((s) => s.size === preferredSize && s.available);
   const size = picked !== undefined ? picked : preferredAvailable ? preferredSize : null;
+  const variant = product.variants?.[variantIndex];
+  const image = variant?.image ?? product.image;
+  const color = variant?.color ?? null;
 
   const productHref = `/producto/${product.id}`;
   const href =
     size == null
       ? undefined
       : whatsappLink(whatsapp, labels.whatsappMessage, {
-          producto: product.name,
+          producto: color ? `${product.name} ${color}` : product.name,
           ref: product.ref,
           talle: String(size),
         });
 
   return (
-    <article id={product.id} className="card-reveal flex scroll-mt-36 flex-col">
-      <Link
-        href={productHref}
-        aria-label={`${labels.viewProduct}: ${product.name}`}
-        className="product-tile group relative block aspect-[4/3] overflow-hidden rounded-3xl"
-      >
-        <span className="tile-shadow absolute inset-x-[16%] bottom-[8%] h-[11%] transition-transform duration-500 group-hover:scale-x-90" />
-        <Image
-          src={product.image.src}
-          alt={product.image.alt}
-          fill
-          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-          loading={eager ? "eager" : "lazy"}
-          className="object-contain p-7 transition-transform duration-500 ease-out group-hover:-translate-y-2 group-hover:scale-[1.06] group-hover:-rotate-2"
+    <article id={product.id} className="card-reveal flex scroll-mt-40 flex-col">
+      <div className="relative">
+        <Link
+          href={productHref}
+          aria-label={`${labels.viewProduct}: ${product.name}`}
+          className="product-tile group relative block aspect-[4/3] overflow-hidden rounded-3xl"
+        >
+          <span className="tile-shadow absolute inset-x-[16%] bottom-[8%] h-[11%] transition-transform duration-500 group-hover:scale-x-90" />
+          <Image
+            key={image.src}
+            src={image.src}
+            alt={image.alt}
+            fill
+            sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+            loading={eager ? "eager" : "lazy"}
+            className="object-contain p-7 transition-transform duration-500 ease-out group-hover:-translate-y-2 group-hover:scale-[1.06] group-hover:-rotate-2"
+          />
+          {product.tag ? (
+            <span
+              className={`absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold tracking-[0.1em] text-paper uppercase ${
+                product.tag === "oferta" ? "bg-rust" : "bg-ink"
+              }`}
+            >
+              {labels.tags[product.tag]}
+            </span>
+          ) : null}
+        </Link>
+        <FavoriteButton
+          id={product.id}
+          size={size ?? null}
+          color={color}
+          addLabel={labels.addFavorite}
+          removeLabel={labels.removeFavorite}
+          className="absolute top-2 right-2"
         />
-        {product.tag ? (
-          <span
-            className={`absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold tracking-[0.1em] text-paper uppercase ${
-              product.tag === "oferta" ? "bg-rust" : "bg-ink"
-            }`}
-          >
-            {labels.tags[product.tag]}
-          </span>
-        ) : null}
-      </Link>
+      </div>
 
       <div className="mt-4 flex items-baseline justify-between gap-4">
         <h3 className="font-display text-2xl leading-tight text-ink lg:text-[1.7rem]">
@@ -88,14 +110,31 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
           <span className="text-lg font-semibold text-ink">{formatPrice(product.price, locale)}</span>
         </p>
       </div>
-      <p className="mt-1 mb-4 text-sm text-ink-soft">
+      <p className="mt-1 text-sm text-ink-soft">
         {product.category} · Ref. {product.ref}
       </p>
 
+      <div className="mt-3 mb-3 min-h-9">
+        {product.variants ? (
+          <ColorPicker
+            variants={product.variants}
+            value={variantIndex}
+            label={labels.colorLabel}
+            onChange={(index) => {
+              setVariantIndex(index);
+              updateFavorite(product.id, { color: product.variants?.[index]?.color ?? null });
+            }}
+          />
+        ) : null}
+      </div>
+
       <SizePicker
         sizes={product.sizes}
-        value={size}
-        onChange={setPicked}
+        value={size ?? null}
+        onChange={(next) => {
+          setPicked(next);
+          updateFavorite(product.id, { size: next });
+        }}
         label={labels.sizeLabel}
         soldOutLabel={labels.soldOut}
       />

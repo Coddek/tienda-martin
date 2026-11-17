@@ -8,6 +8,11 @@ export type ProductSize = { size: number; available: boolean };
 
 export type ProductTag = "nuevo" | "ultimos" | "oferta";
 
+export type ProductImage = { src: string; width: number; height: number; alt: string };
+
+/** Un color del mismo modelo, con su foto. `swatch` es el color del botón redondo. */
+export type ProductVariant = { color: string; swatch: string; image: ProductImage };
+
 export type Product = {
   id: string;
   /** Referencia del fabricante. */
@@ -19,7 +24,10 @@ export type Product = {
   /** Precio anterior, tachado (solo en ofertas). */
   compareAtPrice?: number;
   tag?: ProductTag;
-  image: { src: string; width: number; height: number; alt: string };
+  /** Foto principal (la del primer color). */
+  image: ProductImage;
+  /** Colores disponibles. Si no hay, el modelo viene en un solo color. */
+  variants?: ProductVariant[];
   sizes: ProductSize[];
 };
 
@@ -46,12 +54,24 @@ export const products: Product[] = [
     sizes: sizes(35),
   },
   {
-    id: "zapato-pulsera-plata",
+    id: "zapato-pulsera",
     ref: "1475.202",
-    name: "Zapato Pulsera plata",
+    name: "Zapato Pulsera",
     category: "Zapatos",
     price: 72900,
     image: photo("1475-202", 719, 497, "Zapato plateado en punta con taco cuadrado y pulsera"),
+    variants: [
+      {
+        color: "Plata",
+        swatch: "#C9CCD1",
+        image: photo("1475-202", 719, 497, "Zapato plateado en punta con taco cuadrado y pulsera"),
+      },
+      {
+        color: "Dorado",
+        swatch: "#D8BE7A",
+        image: photo("1475-202-b", 718, 497, "Zapato dorado en punta con taco cuadrado y pulsera"),
+      },
+    ],
     sizes: sizes(40),
   },
   {
@@ -75,22 +95,46 @@ export const products: Product[] = [
     sizes: sizes(),
   },
   {
-    id: "sandalia-lazo-negra",
+    id: "sandalia-lazo",
     ref: "6464.152",
-    name: "Sandalia Lazo negra",
+    name: "Sandalia Lazo",
     category: "Sandalias",
     price: 74900,
     tag: "ultimos",
     image: photo("6464-152", 504, 512, "Sandalia negra de taco cuadrado atada al tobillo"),
+    variants: [
+      {
+        color: "Negro",
+        swatch: "#1E1E1E",
+        image: photo("6464-152", 504, 512, "Sandalia negra de taco cuadrado atada al tobillo"),
+      },
+      {
+        color: "Chocolate",
+        swatch: "#6B4A32",
+        image: photo("6464-152-b", 505, 513, "Sandalia color chocolate de taco cuadrado atada al tobillo"),
+      },
+    ],
     sizes: sizes(36, 40),
   },
   {
-    id: "sandalia-tachas-camel",
+    id: "sandalia-tachas",
     ref: "6570.203",
-    name: "Sandalia Tachas camel",
+    name: "Sandalia Tachas",
     category: "Sandalias",
     price: 59900,
     image: photo("6570-203", 750, 381, "Sandalia baja color camel con tachas"),
+    variants: [
+      {
+        color: "Camel",
+        swatch: "#B9793F",
+        image: photo("6570-203", 750, 381, "Sandalia baja color camel con tachas"),
+      },
+      {
+        color: "Marrón",
+        swatch: "#8A4B22",
+        image: photo("6570-203-b", 750, 381, "Sandalia baja color marrón con tachas"),
+      },
+    ],
     sizes: sizes(38),
   },
   {
@@ -122,12 +166,20 @@ export const products: Product[] = [
     sizes: sizes(37),
   },
   {
-    id: "bota-larga-negra",
+    id: "bota-larga",
     ref: "3105.103",
-    name: "Bota larga negra",
+    name: "Bota larga",
     category: "Botas",
     price: 119900,
     image: photo("3105-103", 222, 531, "Bota larga negra de taco alto"),
+    variants: [
+      { color: "Negro", swatch: "#1E1E1E", image: photo("3105-103", 222, 531, "Bota larga negra de taco alto") },
+      {
+        color: "Chocolate",
+        swatch: "#5A3526",
+        image: photo("3105-103-b", 222, 531, "Bota larga color chocolate de taco alto"),
+      },
+    ],
     sizes: sizes(35, 40),
   },
 ];

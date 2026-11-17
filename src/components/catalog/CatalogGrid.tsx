@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import type { Product } from "@/data/products";
+import { useFavorites } from "@/lib/favorites";
 import { ProductCard, type ProductCardLabels } from "./ProductCard";
+
+type SortKey = "destacados" | "novedades" | "menor" | "mayor";
 
 type Props = {
   products: Product[];
@@ -11,15 +14,18 @@ type Props = {
   allLabel: string;
   sizeFilterLabel: string;
   emptyLabel: string;
+  sortLabel: string;
+  sortOptions: Record<SortKey, string>;
+  favoritesLabels: { filter: string; empty: string };
   labels: ProductCardLabels;
   whatsapp: string;
   locale: string;
 };
 
 /**
- * Grilla del catálogo con dos filtros que se combinan: categoría y "tu talle".
- * Con un talle elegido solo se ven los modelos que lo tienen en stock, y ese
- * talle ya viene marcado en cada tarjeta.
+ * Grilla del catálogo. Filtros que se combinan: categoría (o favoritos) y "tu
+ * talle"; más un orden. Con un talle elegido solo se ven los modelos que lo
+ * tienen en stock, y ese talle ya viene marcado en cada tarjeta.
  */
 export function CatalogGrid({
   products,
@@ -28,47 +34,57 @@ export function CatalogGrid({
   allLabel,
   sizeFilterLabel,
   emptyLabel,
+  sortLabel,
+  sortOptions,
+  favoritesLabels,
   labels,
   whatsapp,
   locale,
 }: Props) {
-  const [category, setCategory] = useState<string | null>(null);
+  // null = todos; "♥" = solo favoritos; cualquier otro valor = esa categoría.
+  const [filter, setFilter] = useState<string | null>(null);
   const [size, setSize] = useState<number | null>(null);
+  const [sort, setSort] = useState<SortKey>("destacados");
+  const favorites = useFavorites();
+  const FAVORITES = "♥";
 
-  const visible = products.filter(
-    (p) =>
-      (!category || p.category === category) &&
-      (size === null || p.sizes.some((s) => s.size === size && s.available)),
-  );
+  const visible = products
+    .filter(
+      (p) =>
+        (filter === null ||
+          (filter === FAVORITES ? favorites.some((f) => f.id === p.id) : p.category === filter)) &&
+        (size === null || p.sizes.some((s) => s.size === size && s.available)),
+    )
+    .sort((a, b) => {
+      if (sort === "menor") return a.price - b.price;
+      if (sort === "mayor") return b.price - a.price;
+      if (sort === "novedades") return Number(b.tag === "nuevo") - Number(a.tag === "nuevo");
+      return 0;
+    });
 
   const chipClass = (active: boolean) =>
     `min-h-11 rounded-full border px-5 text-sm font-medium whitespace-nowrap transition-colors ${
       active ? "border-ink bg-ink text-paper" : "border-ink-soft text-ink hover:border-ink"
     }`;
+  const chip = (label: string, value: string | null) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={filter === value}
+      onClick={() => setFilter(value)}
+      className={chipClass(filter === value)}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <>
       <div className="sticky top-[60px] z-20 -mx-5 bg-paper px-5 py-3 lg:top-[72px] lg:mx-0 lg:px-0">
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
-          <button
-            type="button"
-            aria-pressed={category === null}
-            onClick={() => setCategory(null)}
-            className={chipClass(category === null)}
-          >
-            {allLabel}
-          </button>
-          {categories.map((name) => (
-            <button
-              key={name}
-              type="button"
-              aria-pressed={category === name}
-              onClick={() => setCategory(name)}
-              className={chipClass(category === name)}
-            >
-              {name}
-            </button>
-          ))}
+          {chip(allLabel, null)}
+          {categories.map((name) => chip(name, name))}
+          {chip(`♥ ${favoritesLabels.filter}${favorites.length ? ` (${favorites.length})` : ""}`, FAVORITES)}
         </div>
         <div className="-mx-5 mt-2 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
           <span className="mr-1 text-xs font-medium tracking-[0.14em] whitespace-nowrap text-ink-soft uppercase">
@@ -83,7 +99,7 @@ export function CatalogGrid({
                 aria-pressed={active}
                 aria-label={`${sizeFilterLabel} ${value}`}
                 onClick={() => setSize(active ? null : value)}
-                className={`h-10 min-w-10 rounded-full border px-2 text-sm font-medium transition-colors ${
+                className={`h-10 min-w-10 shrink-0 rounded-full border px-2 text-sm font-medium transition-colors ${
                   active ? "border-rust bg-rust text-paper" : "border-ink-soft text-ink hover:border-ink"
                 }`}
               >
@@ -91,11 +107,28 @@ export function CatalogGrid({
               </button>
             );
           })}
+          <label className="ml-auto flex shrink-0 items-center gap-2 pl-3 text-sm text-ink-soft">
+            <span className="sr-only lg:not-sr-only">{sortLabel}</span>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as SortKey)}
+              aria-label={sortLabel}
+              className="h-10 rounded-full border border-ink-soft bg-paper px-3 text-sm font-medium text-ink"
+            >
+              {(Object.keys(sortOptions) as SortKey[]).map((key) => (
+                <option key={key} value={key}>
+                  {sortOptions[key]}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
 
       {visible.length === 0 ? (
-        <p className="mt-10 rounded-2xl bg-mint-soft px-6 py-10 text-center text-ink-soft">{emptyLabel}</p>
+        <p className="mt-10 rounded-2xl bg-mint-soft px-6 py-10 text-center text-ink-soft">
+          {filter === FAVORITES && favorites.length === 0 ? favoritesLabels.empty : emptyLabel}
+        </p>
       ) : (
         <div className="mt-6 grid gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8">
           {visible.map((product, i) => (
