@@ -1,7 +1,14 @@
 import type { ElementType } from "react";
-import { allSizes, categories, products } from "@/data/products";
+import { categoriesOf, getCatalog, sizesOf } from "@/lib/catalog";
 import { siteConfig } from "../../../site.config";
 import { CatalogGrid } from "./CatalogGrid";
+
+/** Textos del selector de talle, iguales en la tarjeta y en la ficha. */
+export const sizePickerLabels = () => ({
+  label: siteConfig.catalog.sizeLabel,
+  soldOut: siteConfig.catalog.soldOut,
+  ...siteConfig.catalog.stock,
+});
 
 type Props = {
   /** Nivel del título: h1 en la página del catálogo, h2 dentro de la portada. */
@@ -10,8 +17,9 @@ type Props = {
 };
 
 /** Catálogo completo: título, aviso de ejemplo, cómo comprar y la grilla con filtros. */
-export function CatalogSection({ headingAs: Heading = "h2", className }: Props) {
+export async function CatalogSection({ headingAs: Heading = "h2", className }: Props) {
   const { catalog, contact, locale, preview } = siteConfig;
+  const products = await getCatalog();
   return (
     <div className={`mx-auto max-w-[1300px] px-5 lg:px-10 ${className ?? ""}`}>
       <p className="text-xs font-medium tracking-[0.18em] text-ink-soft uppercase lg:text-sm">
@@ -45,8 +53,8 @@ export function CatalogSection({ headingAs: Heading = "h2", className }: Props) 
 
       <CatalogGrid
         products={products}
-        categories={categories}
-        sizes={allSizes}
+        categories={categoriesOf(products)}
+        sizes={sizesOf(products)}
         allLabel={catalog.allLabel}
         sizeFilterLabel={catalog.sizeFilterLabel}
         emptyLabel={catalog.emptyLabel}
@@ -61,7 +69,7 @@ export function CatalogSection({ headingAs: Heading = "h2", className }: Props) 
           removeFavorite: catalog.favorites.remove,
           sizeLabel: catalog.sizeLabel,
           pickSize: catalog.pickSize,
-          soldOut: catalog.soldOut,
+          sizePicker: sizePickerLabels(),
           cta: catalog.cta,
           whatsappMessage: catalog.whatsappMessage,
         }}

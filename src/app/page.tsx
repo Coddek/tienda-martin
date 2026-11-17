@@ -5,7 +5,7 @@ import { ScrollStory } from "@/components/motion/ScrollStory";
 import { Hero } from "@/components/sections/Hero";
 import { Marquee } from "@/components/sections/Marquee";
 import { Runway, type RunwayItem } from "@/components/sections/Runway";
-import { products } from "@/data/products";
+import { getCatalog } from "@/lib/catalog";
 import { formatPrice } from "@/lib/whatsapp";
 import { siteConfig } from "../../site.config";
 
@@ -13,24 +13,22 @@ import { siteConfig } from "../../site.config";
  * Portada corta: logotipo → pasarela de destacados → catálogo → pie.
  * Quien vuelve a comprar toca "Catálogo" arriba y baja directo a la grilla.
  */
-export default function Home() {
+export default async function Home() {
   const { name, nav, hero, wordmark, featured, marquee, catalog, footer, contact, locale, preview } =
     siteConfig;
 
-  const items: RunwayItem[] = featured.productIds.flatMap((id) => {
-    const product = products.find((p) => p.id === id);
-    return product
-      ? [
-          {
-            id,
-            name: product.name,
-            price: formatPrice(product.price, locale),
-            tag: product.tag ? catalog.tags[product.tag] : undefined,
-            image: product.image,
-          },
-        ]
-      : [];
-  });
+  const products = await getCatalog();
+  // Los marcados como destacados; si no hay ninguno, los primeros del catálogo.
+  const marked = products.filter((product) => product.featured);
+  const items: RunwayItem[] = (marked.length > 0 ? marked : products.slice(0, 4)).map(
+    (product) => ({
+      id: product.id,
+      name: product.name,
+      price: formatPrice(product.price, locale),
+      tag: product.tag ? catalog.tags[product.tag] : undefined,
+      image: product.image,
+    }),
+  );
   const catalogHash = `#${nav.catalogAnchor}`;
   const whatsappDigits = contact.whatsapp.replace(/\D/g, "");
 

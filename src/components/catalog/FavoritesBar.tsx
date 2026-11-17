@@ -1,9 +1,10 @@
 "use client";
 
-import { products } from "@/data/products";
 import { useFavorites } from "@/lib/favorites";
 
 type Props = {
+  /** Lo mínimo de cada modelo para armar el mensaje. */
+  products: { id: string; name: string; ref: string }[];
   whatsapp: string;
   labels: {
     consult: string;
@@ -18,7 +19,7 @@ type Props = {
  * consulta que lista todos los modelos, con su color y talle. Es lo más parecido
  * a un carrito sin tener pago online.
  */
-export function FavoritesBar({ whatsapp, labels }: Props) {
+export function FavoritesBar({ products, whatsapp, labels }: Props) {
   const favorites = useFavorites();
   if (favorites.length === 0) return null;
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { siteConfig } from "../../site.config";
 import { FavoritesBar } from "@/components/catalog/FavoritesBar";
 import { WhatsAppFab } from "@/components/layout/WhatsAppFab";
+import { getCatalog } from "@/lib/catalog";
 import { themeVars } from "@/lib/theme";
 import { whatsappLink } from "@/lib/whatsapp";
 import { display, ui } from "./fonts";
@@ -23,9 +24,10 @@ export const viewport: Viewport = {
   themeColor: siteConfig.colors.ink,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const products = (await getCatalog()).map(({ id, name, ref }) => ({ id, name, ref }));
   return (
     <html
       lang={siteConfig.locale}
@@ -35,6 +37,7 @@ export default function RootLayout({
       <body>
         {children}
         <FavoritesBar
+          products={products}
           whatsapp={siteConfig.contact.whatsapp}
           labels={siteConfig.catalog.favorites}
         />

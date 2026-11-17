@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import type { Product } from "@/data/products";
+import { isAvailable, type Product } from "@/data/products";
 import { FAVORITES_FILTER, rememberCatalogUrl, useCatalogQuery } from "@/lib/catalogQuery";
 import { useFavorites } from "@/lib/favorites";
 import { ProductCard, type ProductCardLabels } from "./ProductCard";
@@ -62,7 +62,8 @@ export function CatalogGrid({
       (p) =>
         (filter === null ||
           (filter === FAVORITES ? favorites.some((f) => f.id === p.id) : p.category === filter)) &&
-        (size === null || p.sizes.some((s) => s.size === size && s.available)),
+        (size === null ||
+          p.variants.some((v) => v.sizes.some((s) => s.size === size && isAvailable(s)))),
     )
     .sort((a, b) => {
       if (sort === "menor") return a.price - b.price;

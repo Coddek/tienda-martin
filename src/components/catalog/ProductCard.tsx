@@ -3,12 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import type { Product, ProductTag } from "@/data/products";
+import { colorName, isAvailable, type Product, type ProductTag } from "@/data/products";
 import { updateFavorite } from "@/lib/favorites";
 import { formatPrice, whatsappLink } from "@/lib/whatsapp";
 import { ColorPicker } from "./ColorPicker";
 import { FavoriteButton } from "./FavoriteButton";
-import { SizePicker } from "./SizePicker";
+import { SizePicker, type SizePickerLabels } from "./SizePicker";
 
 export type ProductCardLabels = {
   tags: Record<ProductTag, string>;
@@ -18,7 +18,7 @@ export type ProductCardLabels = {
   removeFavorite: string;
   sizeLabel: string;
   pickSize: string;
-  soldOut: string;
+  sizePicker: SizePickerLabels;
   cta: string;
   whatsappMessage: string;
 };
@@ -38,16 +38,22 @@ type Props = {
 export function ProductCard({ product, labels, whatsapp, locale, preferredSize, eager }: Props) {
   // undefined = la persona todavía no tocó nada en esta tarjeta.
   const [picked, setPicked] = useState<number | null | undefined>(undefined);
-  const [variantIndex, setVariantIndex] = useState(0);
+  const [pickedVariant, setPickedVariant] = useState<number | undefined>(undefined);
   // Hasta que llega la foto, la tarjeta muestra un brillo (así no parece vacía).
   const [loaded, setLoaded] = useState(false);
 
-  const preferredAvailable =
-    preferredSize != null && product.sizes.some((s) => s.size === preferredSize && s.available);
-  const size = picked !== undefined ? picked : preferredAvailable ? preferredSize : null;
-  const variant = product.variants?.[variantIndex];
-  const image = variant?.image ?? product.image;
-  const color = variant?.color ?? null;
+  const hasSize = (index: number, value: number) =>
+    product.variants[index]?.sizes.some((s) => s.size === value && isAvailable(s)) ?? false;
+  // Con el filtro "tu talle", la tarjeta arranca en el primer color que lo tiene.
+  const preferredVariant =
+    preferredSize != null ? product.variants.findIndex((_, i) => hasSize(i, preferredSize)) : -1;
+  const variantIndex = pickedVariant ?? Math.max(preferredVariant, 0);
+  const variant = product.variants[variantIndex];
+  // El talle elegido se mantiene al cambiar de color solo si ese color lo tiene.
+  const wanted = picked !== undefined ? picked : (preferredSize ?? null);
+  const size = wanted != null && hasSize(variantIndex, wanted) ? wanted : null;
+  const image = variant.image;
+  const color = colorName(product, variant);
 
   const productHref = `/producto/${product.id}`;
   const href =
@@ -92,7 +98,7 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
         </Link>
         <FavoriteButton
           id={product.id}
-          size={size ?? null}
+          size={size}
           color={color}
           addLabel={labels.addFavorite}
           removeLabel={labels.removeFavorite}
@@ -120,28 +126,27 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
       </p>
 
       <div className="mt-3 mb-3 min-h-9">
-        {product.variants ? (
+        {product.variants.length > 1 ? (
           <ColorPicker
             variants={product.variants}
             value={variantIndex}
             label={labels.colorLabel}
             onChange={(index) => {
-              setVariantIndex(index);
-              updateFavorite(product.id, { color: product.variants?.[index]?.color ?? null });
+              setPickedVariant(index);
+              updateFavorite(product.id, { color: product.variants[index]?.color ?? null });
             }}
           />
         ) : null}
       </div>
 
       <SizePicker
-        sizes={product.sizes}
-        value={size ?? null}
+        sizes={variant.sizes}
+        value={size}
         onChange={(next) => {
           setPicked(next);
           updateFavorite(product.id, { size: next });
         }}
-        label={labels.sizeLabel}
-        soldOutLabel={labels.soldOut}
+        labels={labels.sizePicker}
       />
 
       {href ? (

@@ -4,23 +4,26 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackToCatalog } from "@/components/catalog/BackToCatalog";
+import { sizePickerLabels } from "@/components/catalog/CatalogSection";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { getProduct, products } from "@/data/products";
+import { getCatalog, getProduct } from "@/lib/catalog";
 import { formatPrice } from "@/lib/whatsapp";
 import { siteConfig } from "../../../../site.config";
 
 type PageProps = { params: Promise<{ id: string }> };
 
-// Una página fija por producto: se generan todas en el build y cargan al instante.
-export function generateStaticParams() {
+// Una página fija por producto: se generan todas en el build y cargan al
+// instante. Los modelos que se cargan después se generan la primera vez que alguien entra.
+export async function generateStaticParams() {
+  const products = await getCatalog();
   return products.map((product) => ({ id: product.id }));
 }
 
 // El título y la foto son lo que se ve al pegar el enlace en WhatsApp o Instagram.
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const product = getProduct(id);
+  const product = await getProduct(id);
   if (!product) return {};
   const description = `${product.category} · ${formatPrice(product.price, siteConfig.locale)}`;
   return {
@@ -56,7 +59,8 @@ export default function ProductPage({ params }: PageProps) {
 
 async function ProductContent({ params }: PageProps) {
   const { id } = await params;
-  const product = getProduct(id);
+  const products = await getCatalog();
+  const product = products.find((p) => p.id === id);
   if (!product) notFound();
 
   const { nav, catalog, contact, locale } = siteConfig;
@@ -88,7 +92,7 @@ async function ProductContent({ params }: PageProps) {
           removeFavorite: catalog.favorites.remove,
           sizeLabel: catalog.sizeLabel,
           pickSize: catalog.pickSize,
-          soldOut: catalog.soldOut,
+          sizePicker: sizePickerLabels(),
           cta: catalog.cta,
           whatsappMessage: catalog.whatsappMessage,
           share: catalog.share,

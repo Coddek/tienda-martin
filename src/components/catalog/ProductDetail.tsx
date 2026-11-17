@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import type { Product, ProductTag } from "@/data/products";
+import { colorName, isAvailable, type Product, type ProductTag } from "@/data/products";
 import { updateFavorite } from "@/lib/favorites";
 import { whatsappLink } from "@/lib/whatsapp";
 import { ColorPicker } from "./ColorPicker";
 import { FavoriteButton } from "./FavoriteButton";
-import { SizePicker } from "./SizePicker";
+import { SizePicker, type SizePickerLabels } from "./SizePicker";
 
 type Props = {
   product: Product;
@@ -22,7 +22,7 @@ type Props = {
     removeFavorite: string;
     sizeLabel: string;
     pickSize: string;
-    soldOut: string;
+    sizePicker: SizePickerLabels;
     cta: string;
     whatsappMessage: string;
     share: string;
@@ -34,13 +34,16 @@ type Props = {
 
 /** Ficha de producto: foto grande que cambia con el color, talle, WhatsApp, favorito y compartir. */
 export function ProductDetail({ product, price, compareAtPrice, whatsapp, labels, children }: Props) {
-  const [size, setSize] = useState<number | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
   const [variantIndex, setVariantIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const variant = product.variants?.[variantIndex];
-  const image = variant?.image ?? product.image;
-  const color = variant?.color ?? null;
+  const variant = product.variants[variantIndex] ?? product.variants[0];
+  const image = variant.image;
+  const color = colorName(product, variant);
+  // Al cambiar de color, el talle elegido sigue solo si ese color lo tiene.
+  const size =
+    picked != null && variant.sizes.some((s) => s.size === picked && isAvailable(s)) ? picked : null;
 
   const href =
     size === null
@@ -116,7 +119,7 @@ export function ProductDetail({ product, price, compareAtPrice, whatsapp, labels
           ) : null}
         </p>
 
-        {product.variants ? (
+        {product.variants.length > 1 ? (
           <div className="mt-6">
             <ColorPicker
               variants={product.variants}
@@ -124,7 +127,7 @@ export function ProductDetail({ product, price, compareAtPrice, whatsapp, labels
               label={labels.colorLabel}
               onChange={(index) => {
                 setVariantIndex(index);
-                updateFavorite(product.id, { color: product.variants?.[index]?.color ?? null });
+                updateFavorite(product.id, { color: product.variants[index]?.color ?? null });
               }}
             />
           </div>
@@ -132,14 +135,13 @@ export function ProductDetail({ product, price, compareAtPrice, whatsapp, labels
 
         <div className="mt-6">
           <SizePicker
-            sizes={product.sizes}
+            sizes={variant.sizes}
             value={size}
             onChange={(next) => {
-              setSize(next);
+              setPicked(next);
               updateFavorite(product.id, { size: next });
             }}
-            label={labels.sizeLabel}
-            soldOutLabel={labels.soldOut}
+            labels={labels.sizePicker}
             large
           />
         </div>

@@ -52,20 +52,14 @@ export const siteConfig = {
   },
 
   /**
-   * Destacados de la portada: lo más vendido, lo que está de moda o lo que haya
-   * en stock. Se cambia acá (más adelante, desde el panel). Aparecen en una
-   * pasarela que se desliza apenas se abre el isotipo.
+   * Destacados de la portada: los productos marcados como destacados (en la
+   * base, desde el editor). Aparecen en una pasarela que se desliza apenas se
+   * abre el isotipo.
    */
   featured: {
     eyebrow: "Esta semana",
     title: "Lo más elegido",
     swipeHint: "Deslizá para ver más",
-    productIds: [
-      "sandalia-nudo-dorada",
-      "zapato-pulsera",
-      "sandalia-lazo",
-      "botineta-chocolate",
-    ],
     cta: "Ver todo el catálogo",
   },
 
@@ -152,6 +146,14 @@ export const siteConfig = {
     sizeLabel: "Talle",
     pickSize: "Elegí tu talle",
     soldOut: "Sin stock",
+    /** Avisos de poco stock: nunca se muestra el número exacto. */
+    stock: {
+      lowShort: { ultimo: "Último", quedan2: "Quedan 2" },
+      low: { ultimo: "Último par", quedan2: "Quedan 2 pares" },
+      /** El talle que se ve es el argentino; el brasileño es el de la etiqueta. */
+      arLabel: "AR",
+      brLabel: "BR",
+    },
     cta: "Consultar por WhatsApp",
     /** Mensaje precargado. Se reemplazan {producto}, {ref} y {talle}. */
     whatsappMessage: "Hola Martin! Quiero consultar por {producto} (ref. {ref}) en talle {talle}.",
