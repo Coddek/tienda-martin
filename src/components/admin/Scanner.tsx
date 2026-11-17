@@ -1,45 +1,16 @@
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import { cleanBarcode, isValidBarcode } from "@/lib/ean";
+import {
+  captureFrame,
+  cleanBarcode,
+  GUIDE,
+  isValidBarcode,
+  shareOrDownload,
+  startScanner,
+  type ScanDiagnostics,
+} from "@/lib/barcode-scanner";
 
-type Detector = { detect: (source: HTMLCanvasElement) => Promise<{ rawValue: string }[]> };
-
-const FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e"];
-
-/** Recuadro guía, en fracciones del visor (casi cuadrado: el código de estas cajas va parado). */
-const GUIDE = { left: 0.12, right: 0.88, top: 0.08, bottom: 0.92 };
-/** Lado mayor de cada cuadro que se analiza: más chico = más rápido en el celular. */
-const MAX_SIDE = 1600;
-/** Ventana para que el mismo número salga dos veces antes de aceptarlo. */
-const CONFIRM_WINDOW_MS = 2500;
 /** Después de esto sin leer, se muestran consejos. */
 const HINT_AFTER_MS = 8000;
-
-/**
- * Lector nativo del navegador si existe (Chrome en Android); si no (iPhone),
- * el de respaldo. Su motor (zxing_reader.wasm, ~1 MB) se sirve desde la propia
- * página (public/) y se descarga recién al abrir el escáner. Si se actualiza
- * la dependencia barcode-detector, copiar de nuevo node_modules/zxing-wasm/dist/reader/zxing_reader.wasm.
- */
-async function createDetector(): Promise<Detector> {
-  const native = (globalThis as { BarcodeDetector?: { new (o: object): Detector; getSupportedFormats(): Promise<string[]> } })
-    .BarcodeDetector;
-  if (native) {
-    try {
-      const supported = await native.getSupportedFormats();
-      if (supported.includes("ean_13")) return new native({ formats: FORMATS });
-    } catch {
-      // sigue con el de respaldo
-    }
-  }
-  const { BarcodeDetector, prepareZXingModule } = await import("barcode-detector/ponyfill");
-  await prepareZXingModule({
-    overrides: {
-      locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? "/zxing_reader.wasm" : prefix + path),
-    },
-    fireImmediately: true,
-  });
-  return new BarcodeDetector({ formats: FORMATS as never });
-}
 
 type Props = {
   onDetect: (code: string) => void;
@@ -47,128 +18,50 @@ type Props = {
 };
 
 /**
- * Cámara trasera + lectura del código de barras de la caja. Se analiza lo que
- * está dentro del recuadro (ampliado) y, alternando, todo el visor. Se acepta
- * un número cuando sale dos veces igual y cierra el dígito de control; después igual se confirma
- * el modelo en pantalla. Siempre se puede tipear el número de la etiqueta.
+ * Cámara trasera + lectura del código de barras de la caja (motor en
+ * src/lib/barcode-scanner.ts). Siempre se puede tipear el número de la
+ * etiqueta. Con «Diagnóstico» se ve qué está pasando adentro y se puede
+ * guardar un cuadro de la cámara para revisarlo.
  */
 export function Scanner({ onDetect, onCancel }: Props) {
   const video = useRef<HTMLVideoElement>(null);
+  const scanner = useRef<ReturnType<typeof startScanner> | null>(null);
   const [status, setStatus] = useState<"starting" | "scanning" | "slow" | "error">("starting");
   const [error, setError] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [typedError, setTypedError] = useState<string | null>(null);
-  const done = useRef(false);
+  const [showDiag, setShowDiag] = useState(false);
+  const [diag, setDiag] = useState<ScanDiagnostics | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-    let timer = 0;
+    if (!video.current) return;
     let hintTimer = 0;
-    let cancelled = false;
-    const seen = new Map<string, number[]>();
-
-    const finish = (code: string) => {
-      if (done.current) return;
-      done.current = true;
-      navigator.vibrate?.(60);
-      onDetect(code);
-    };
-
-    (async () => {
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Este navegador no deja usar la cámara. Tipeá el número de la etiqueta.");
-        }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        });
-        if (cancelled || !video.current) return;
-        video.current.srcObject = stream;
-        await video.current.play();
-        let detector: Detector;
-        try {
-          detector = await createDetector();
-        } catch {
-          throw new Error("No se pudo cargar el lector. Revisá la conexión o tipeá el número de la etiqueta.");
-        }
-        if (cancelled) return;
+    const s = startScanner(video.current, {
+      onCode: onDetect,
+      onReady: () => {
         setStatus("scanning");
-        hintTimer = window.setTimeout(() => {
-          if (!done.current) setStatus("slow");
-        }, HINT_AFTER_MS);
-
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        let frame = 0;
-        const tick = async () => {
-          if (cancelled || done.current || !video.current || !ctx) return;
-          const v = video.current;
-          try {
-            if (v.readyState >= 2 && v.videoWidth) {
-              // Qué parte del video se ve en el visor (object-cover recorta los bordes).
-              const box = v.getBoundingClientRect();
-              const scale = Math.max(box.width / v.videoWidth, box.height / v.videoHeight);
-              const visW = box.width / scale;
-              const visH = box.height / scale;
-              const visX = (v.videoWidth - visW) / 2;
-              const visY = (v.videoHeight - visH) / 2;
-              // Un cuadro el recuadro guía, el siguiente todo lo visible.
-              const region =
-                frame++ % 2 === 0
-                  ? {
-                      x: visX + visW * GUIDE.left,
-                      y: visY + visH * GUIDE.top,
-                      w: visW * (GUIDE.right - GUIDE.left),
-                      h: visH * (GUIDE.bottom - GUIDE.top),
-                    }
-                  : { x: visX, y: visY, w: visW, h: visH };
-              const k = Math.min(2, MAX_SIDE / Math.max(region.w, region.h));
-              canvas.width = Math.round(region.w * k);
-              canvas.height = Math.round(region.h * k);
-              ctx.imageSmoothingQuality = "high";
-              ctx.drawImage(v, region.x, region.y, region.w, region.h, 0, 0, canvas.width, canvas.height);
-              const found = await detector.detect(canvas);
-              const code = found.map((f) => cleanBarcode(f.rawValue)).find(isValidBarcode);
-              if (code) {
-                // Se acepta recién cuando el mismo número sale dos veces en 2,5 s
-                // (con cuadros sin lectura en el medio, no importa). Probado con
-                // las etiquetas: una lectura suelta puede ser un número equivocado
-                // que igual cierra el dígito de control.
-                const now = performance.now();
-                const times = (seen.get(code) ?? []).filter((t) => now - t < CONFIRM_WINDOW_MS);
-                times.push(now);
-                seen.set(code, times);
-                if (times.length >= 2) finish(code);
-              }
-            }
-          } catch {
-            // un cuadro que no se pudo leer: se prueba con el siguiente
-          }
-          timer = window.setTimeout(tick, 60);
-        };
-        tick();
-      } catch (e) {
-        if (cancelled) return;
-        const denied = e instanceof DOMException && e.name === "NotAllowedError";
-        setError(
-          denied
-            ? "No hay permiso para usar la cámara. Activalo en el navegador o tipeá el número de la etiqueta."
-            : e instanceof Error
-              ? e.message
-              : "No se pudo abrir la cámara.",
-        );
+        hintTimer = window.setTimeout(() => setStatus((st) => (st === "scanning" ? "slow" : st)), HINT_AFTER_MS);
+      },
+      onError: (message) => {
+        setError(message);
         setStatus("error");
-      }
-    })();
-
+      },
+    });
+    scanner.current = s;
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
       window.clearTimeout(hintTimer);
-      stream?.getTracks().forEach((t) => t.stop());
+      s.stop();
+      scanner.current = null;
     };
   }, [onDetect]);
+
+  // Mientras el diagnóstico está abierto, se actualiza dos veces por segundo.
+  useEffect(() => {
+    if (!showDiag) return;
+    const id = window.setInterval(() => setDiag(scanner.current?.diagnostics() ?? null), 500);
+    return () => window.clearInterval(id);
+  }, [showDiag]);
 
   const submitTyped = (event: SubmitEvent) => {
     event.preventDefault();
@@ -177,17 +70,28 @@ export function Scanner({ onDetect, onCancel }: Props) {
       setTypedError("Ese número no es válido. Revisalo en la etiqueta (son 13 dígitos).");
       return;
     }
-    done.current = true;
+    scanner.current?.stop();
     onDetect(code);
   };
+
+  const diagText = diag
+    ? [
+        `Lector v${diag.version} · ${diag.reader} · motor: ${diag.engine}`,
+        `Cámara: ${diag.camera} · zoom: ${diag.zoom}`,
+        `Cuadros analizados: ${diag.frames} · ${diag.msPerFrame} ms c/u`,
+        `Lecturas: ${diag.reads.length ? diag.reads.join(", ") : "ninguna"}`,
+        `Último error: ${diag.lastError ?? "ninguno"}`,
+        `Navegador: ${navigator.userAgent}`,
+      ].join("\n")
+    : "Cargando…";
 
   const message =
     status === "starting"
       ? "Abriendo la cámara y el lector…"
       : status === "scanning"
-        ? "Poné el código de barras adentro del recuadro, a unos 15 cm."
+        ? "Poné el código de barras adentro del recuadro, a unos 20–30 cm."
         : status === "slow"
-          ? "Todavía no lee: acercá o alejá el celular hasta que el código se vea nítido y grande en el recuadro, con buena luz y sin reflejo. O tipeá los números abajo."
+          ? "Todavía no lee: alejá el celular hasta que el código se vea nítido (de muy cerca no enfoca), con buena luz y sin reflejo. O tipeá los números abajo."
           : error;
 
   return (
@@ -238,6 +142,51 @@ export function Scanner({ onDetect, onCancel }: Props) {
         </div>
         {typedError ? <p className="text-sm font-medium text-rust">{typedError}</p> : null}
       </form>
+
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setShowDiag(!showDiag);
+            setDiag(scanner.current?.diagnostics() ?? null);
+          }}
+          className="min-h-11 self-center text-xs font-medium text-ink-soft underline"
+        >
+          {showDiag ? "Ocultar diagnóstico" : "¿No anda? Ver diagnóstico"}
+        </button>
+        {showDiag ? (
+          <div className="flex flex-col gap-2 rounded-2xl border border-mint p-3">
+            <pre className="text-[0.7rem] leading-relaxed break-words whitespace-pre-wrap text-ink">{diagText}</pre>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const blob = video.current ? await captureFrame(video.current) : null;
+                  if (blob) await shareOrDownload(blob, `camara-lector-${Date.now()}.jpg`);
+                }}
+                className="min-h-11 flex-1 rounded-2xl border border-ink-soft text-sm font-medium"
+              >
+                Guardar cuadro
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(diagText);
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    // sin portapapeles: se puede sacar captura de pantalla
+                  }
+                }}
+                className="min-h-11 flex-1 rounded-2xl border border-ink-soft text-sm font-medium"
+              >
+                {copied ? "Copiado ✓" : "Copiar datos"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       {onCancel ? (
         <button type="button" onClick={onCancel} className="min-h-11 text-sm font-medium text-ink-soft underline">
