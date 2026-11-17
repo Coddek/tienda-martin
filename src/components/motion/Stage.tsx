@@ -2,7 +2,7 @@
 
 import type { Ref } from "react";
 import { IsotipoMark } from "@/components/brand/IsotipoMark";
-import type { IsotipoHandle } from "@/components/brand/isotipo-paths";
+import { ISOTIPO_VIEWBOX, type IsotipoHandle } from "@/components/brand/isotipo-paths";
 
 type Props = {
   use3D: boolean;
@@ -27,7 +27,12 @@ export function Stage({ use3D, isotipoRef }: Props) {
         data-isotipo
         className="absolute top-[60svh] left-1/2 w-[84vw] max-w-[340px] -translate-x-1/2 -translate-y-1/2 text-gold lg:top-[40svh] lg:w-[min(40vw,600px)] lg:max-w-none"
       >
-        <IsotipoMark ref={isotipoRef} use3D={use3D} className="aspect-[186/112] w-full" />
+        <IsotipoMark
+          ref={isotipoRef}
+          use3D={use3D}
+          className="w-full"
+          style={{ aspectRatio: `${ISOTIPO_VIEWBOX.width} / ${ISOTIPO_VIEWBOX.height}` }}
+        />
       </div>
     </div>
   );

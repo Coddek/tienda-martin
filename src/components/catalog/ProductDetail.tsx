@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { colorName, isAvailable, type Product, type ProductTag } from "@/data/products";
 import { updateFavorite } from "@/lib/favorites";
-import { whatsappLink } from "@/lib/whatsapp";
+import { productUrl, whatsappLink } from "@/lib/whatsapp";
 import { ColorPicker } from "./ColorPicker";
 import { FavoriteButton } from "./FavoriteButton";
 import { SizePicker, type SizePickerLabels } from "./SizePicker";
@@ -52,6 +52,7 @@ export function ProductDetail({ product, price, compareAtPrice, whatsapp, labels
           producto: color ? `${product.name} ${color}` : product.name,
           ref: product.ref,
           talle: String(size),
+          link: productUrl(product.id),
         });
 
   // En celular abre el menú de compartir del teléfono (Instagram, WhatsApp…);

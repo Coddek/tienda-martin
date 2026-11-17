@@ -77,6 +77,23 @@ export function ScrollStory({ children }: Props) {
             { autoAlpha: 0, y: -40, duration: 0.35, ease: "none" },
             0,
           )
+          // MARTIN se abre desde el centro mientras se atraviesa el isotipo: cada
+          // letra se va hacia su costado (más lejos cuanto más afuera), crece un
+          // poco y se desvanece. En escritorio, además, se desenfoca.
+          .to(
+            hero.querySelectorAll("[data-letter]"),
+            {
+              x: (i: number, _: Element, all: Element[]) =>
+                (i - (all.length - 1) / 2) * window.innerWidth * 0.16,
+              scale: 1.18,
+              autoAlpha: 0,
+              ...(window.matchMedia(MEDIA.desktop).matches ? { filter: "blur(10px)" } : {}),
+              duration: 0.55,
+              ease: "power2.in",
+              stagger: { each: 0.04, from: "center" },
+            },
+            0.05,
+          )
           .to(state, { split: 1, duration: 1, ease: "none", onUpdate: () => setSplit(state.split) }, 0);
       }
 

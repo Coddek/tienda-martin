@@ -26,23 +26,25 @@ export const siteConfig = {
   },
 
   wordmark: {
-    text: "MARTIN",
-    /** El logo real usa una tipografía decorativa propia; esto es Cormorant hasta tener el archivo. */
-    provisional: true,
+    /** Texto para lectores de pantalla; el dibujo está en src/components/brand/wordmark-paths.ts. */
+    text: "Martin",
+    /** Vectorizado del ícono original de 1024 px (ver wordmark-paths.ts). */
+    provisional: false,
     provisionalLabel: "Logotipo provisorio",
   },
 
   isotipo: {
-    /** Redibujado a mano a partir de un PNG de 165×95; reemplazar por el original. */
-    provisional: true,
+    /** Vectorizado del ícono original de 1024 px (ver isotipo-paths.ts). */
+    provisional: false,
   },
 
   contact: {
     /** Pendiente: número con código de país, sin signos. */
     whatsapp: "",
-    instagram: "",
-    address: "",
-    hours: "",
+    /** Usuario, sin @. */
+    instagram: "zapateria.martin",
+    address: "Concejal Tribulato 1127, B1663 San Miguel, Provincia de Buenos Aires",
+    hours: "Lunes a sábado de 9 a 20 h",
   },
 
   hero: {
@@ -96,6 +98,7 @@ export const siteConfig = {
 
   footer: {
     directions: "Cómo llegar",
+    mapTitle: "Mapa del local",
     visitTitle: "Vení al local",
     contactTitle: "Escribinos",
     whatsappLabel: "WhatsApp",
@@ -123,11 +126,23 @@ export const siteConfig = {
       filter: "Favoritos",
       add: "Guardar en favoritos",
       remove: "Quitar de favoritos",
-      consult: "Consultar favoritos",
+      /** Botón flotante: abre la lista (desde ahí se consulta). */
+      consult: "Mis favoritos",
+      /** Panel que se despliega desde el botón de favoritos. */
+      panelTitle: "Tus favoritos",
+      panelHint: "Revisá la lista antes de consultar: podés quitar los que no quieras.",
+      consultAll: "Consultar por WhatsApp",
+      removeOne: "Quitar",
+      clear: "Vaciar lista",
+      clearConfirm: "¿Quitar todos los modelos de tu lista?",
+      clearYes: "Sí, vaciar",
+      clearCancel: "No, dejarlos",
+      close: "Cerrar",
+      view: "Ver",
       empty: "Todavía no guardaste ningún modelo. Tocá el corazón de los que te gusten.",
       messageIntro: "Hola Martin! Quiero consultar por estos modelos:",
-      /** Se reemplazan {producto}, {ref} y {talle}. */
-      messageLine: "- {producto} (ref. {ref}), talle {talle}",
+      /** Se reemplazan {producto}, {ref}, {talle} y {link} (la ficha del producto). */
+      messageLine: "• {producto}, talle {talle} (ref. {ref})\n{link}",
       noSize: "a confirmar",
     },
     sortLabel: "Ordenar",
@@ -155,8 +170,9 @@ export const siteConfig = {
       brLabel: "BR",
     },
     cta: "Consultar por WhatsApp",
-    /** Mensaje precargado. Se reemplazan {producto}, {ref} y {talle}. */
-    whatsappMessage: "Hola Martin! Quiero consultar por {producto} (ref. {ref}) en talle {talle}.",
+    /** Mensaje precargado. Se reemplazan {producto}, {ref}, {talle} y {link} (la ficha del producto). */
+    whatsappMessage:
+      "Hola Martin! Quiero consultar por {producto} en talle {talle} (ref. {ref}).\n{link}",
     howToBuy: [
       { title: "Elegí modelo y talle", body: "Tocá tu talle en la foto del zapato." },
       { title: "Consultá por WhatsApp", body: "El mensaje ya sale escrito con el modelo y el talle." },

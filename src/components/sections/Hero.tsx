@@ -1,4 +1,4 @@
-import { SplitTitle } from "@/components/motion/SplitTitle";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 type Props = {
   eyebrow: string;
@@ -27,13 +27,21 @@ export function Hero({ eyebrow, tagline, wordmark, wordmarkNote, scrollHint }: P
           <p className="max-w-[14rem] text-right">{tagline}</p>
         </div>
 
-        <div data-hero-fade>
-          <SplitTitle
-            as="h1"
-            text={wordmark}
-            className="text-center font-display text-[21vw] leading-[0.82] font-normal text-paper lg:text-[clamp(8rem,19vw,20rem)]"
-          />
-          <div className="mt-5 flex items-center justify-between text-xs tracking-[0.18em] text-mint-soft uppercase lg:text-sm">
+        <div>
+          {/* Recorta solo en vertical: las letras entran desde abajo como por una
+              ranura, y al salir pueden abrirse hacia los costados sin cortarse. */}
+          <h1 className="overflow-y-clip text-paper">
+            {/* En escritorio, al ancho que tenía el título en letras: deja lugar al isotipo encima. */}
+            <Wordmark
+              label={wordmark}
+              animated
+              className="mx-auto block w-full overflow-visible lg:w-[62vw] lg:max-w-[1100px]"
+            />
+          </h1>
+          <div
+            data-hero-fade
+            className="mt-5 flex items-center justify-between text-xs tracking-[0.18em] text-mint-soft uppercase lg:text-sm"
+          >
             <span>{wordmarkNote ?? ""}</span>
             <span className="flex items-center gap-3">
               {scrollHint}

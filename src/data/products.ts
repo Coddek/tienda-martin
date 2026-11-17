@@ -2,7 +2,7 @@
  * Forma del catálogo y catálogo de EJEMPLO. Con Supabase configurado y con
  * productos cargados, el catálogo sale de la base (ver src/lib/catalog.ts) con
  * esta misma forma; mientras tanto se muestra este ejemplo. Las fotos son del
- * catálogo de Vizzano (falta confirmar permiso); nombres, precios y stock son inventados.
+ * catálogo de Vizzano (el local es cliente de la marca); nombres, precios y stock son inventados.
  */
 
 /** Cuánto queda de un talle. La página nunca muestra el número exacto. */

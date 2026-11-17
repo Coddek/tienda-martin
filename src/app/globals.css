@@ -209,3 +209,24 @@ html.lenis body {
   );
   opacity: 0.85;
 }
+
+/* Panel de favoritos: sube desde abajo al abrirse (sin movimiento si se pidió reducirlo). */
+@media (prefers-reduced-motion: no-preference) {
+  .favorites-panel[open] {
+    animation: favorites-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .favorites-panel[open]::backdrop {
+    animation: favorites-fade 0.28s ease-out;
+  }
+}
+@keyframes favorites-in {
+  from {
+    transform: translateY(32px);
+    opacity: 0;
+  }
+}
+@keyframes favorites-fade {
+  from {
+    opacity: 0;
+  }
+}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { colorName, isAvailable, type Product, type ProductTag } from "@/data/products";
 import { updateFavorite } from "@/lib/favorites";
-import { formatPrice, whatsappLink } from "@/lib/whatsapp";
+import { formatPrice, productUrl, whatsappLink } from "@/lib/whatsapp";
 import { ColorPicker } from "./ColorPicker";
 import { FavoriteButton } from "./FavoriteButton";
 import { SizePicker, type SizePickerLabels } from "./SizePicker";
@@ -63,6 +63,7 @@ export function ProductCard({ product, labels, whatsapp, locale, preferredSize, 
           producto: color ? `${product.name} ${color}` : product.name,
           ref: product.ref,
           talle: String(size),
+          link: productUrl(product.id),
         });
 
   return (

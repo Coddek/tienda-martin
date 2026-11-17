@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { siteConfig } from "../../site.config";
 import { FavoritesBar } from "@/components/catalog/FavoritesBar";
 import { WhatsAppFab } from "@/components/layout/WhatsAppFab";
@@ -24,10 +25,32 @@ export const viewport: Viewport = {
   themeColor: siteConfig.colors.ink,
 };
 
-export default async function RootLayout({
+/**
+ * La barra de favoritos necesita los nombres del catálogo. Va aparte y dentro
+ * de <Suspense> (abajo): así el layout no espera a Supabase y ninguna página
+ * queda bloqueada si la consulta tarda (por ejemplo, con la caché vacía).
+ */
+async function FavoritesBarWithCatalog() {
+  const products = (await getCatalog()).map(({ id, name, ref, image, variants }) => ({
+    id,
+    name,
+    ref,
+    photo: image.src,
+    photos: Object.fromEntries(variants.map((v) => [v.color, v.image.src])),
+  }));
+  return (
+    <FavoritesBar
+      products={products}
+      whatsapp={siteConfig.contact.whatsapp}
+      labels={siteConfig.catalog.favorites}
+      sizeLabel={siteConfig.catalog.sizeLabel}
+    />
+  );
+}
+
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const products = (await getCatalog()).map(({ id, name, ref }) => ({ id, name, ref }));
   return (
     <html
       lang={siteConfig.locale}
@@ -36,11 +59,9 @@ export default async function RootLayout({
     >
       <body>
         {children}
-        <FavoritesBar
-          products={products}
-          whatsapp={siteConfig.contact.whatsapp}
-          labels={siteConfig.catalog.favorites}
-        />
+        <Suspense fallback={null}>
+          <FavoritesBarWithCatalog />
+        </Suspense>
         <WhatsAppFab
           label={siteConfig.whatsappFab.label}
           href={whatsappLink(siteConfig.contact.whatsapp, siteConfig.whatsappFab.message, {})}

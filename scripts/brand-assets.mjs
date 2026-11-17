@@ -14,23 +14,39 @@ const INK = "#123223";
 const PAPER = "#F0F1EB";
 const MINT = "#B9D0BB";
 const GOLD = "#C8A662";
-const NAME = "MARTIN";
-const TAGLINE = "Calzado femenino · Elegante, para todos los días.";
+// En dos líneas, para que no toque las fotos de la derecha.
+const TAGLINE = ["Calzado femenino", "Elegante, para todos los días."];
 const SHOES = ["vizzano-1475-202.webp", "vizzano-6576-203.webp", "vizzano-3077-125.webp"];
 
-// Trazos del isotipo, leídos del mismo archivo que usa el sitio.
-const pathsSource = fs.readFileSync(path.join(root, "src/components/brand/isotipo-paths.ts"), "utf8");
+// Trazos del isotipo y del logotipo, leídos de los mismos archivos que usa el sitio.
+const brand = (file) => fs.readFileSync(path.join(root, "src/components/brand", file), "utf8");
+const isoSource = brand("isotipo-paths.ts");
+const wordSource = brand("wordmark-paths.ts");
 const pick = (name) => {
-  const match = pathsSource.match(new RegExp(`const ${name} =\\s*"([^"]+)"`));
+  const match = isoSource.match(new RegExp(`const ${name} =\\s*"([^"]+)"`));
   if (!match) throw new Error(`No encuentro ${name} en isotipo-paths.ts`);
   return match[1];
 };
-const shape = `${pick("LEFT_OUTER")} ${pick("LEFT_INNER")}`;
-const W = 186; // ancho del viewBox del isotipo
-const H = 112;
+const viewBox = (source) => {
+  const match = source.match(/width: ([\d.]+), height: ([\d.]+)/);
+  return [Number(match[1]), Number(match[2])];
+};
+const [W, H] = viewBox(isoSource);
 const isotipo = (fill) =>
-  `<path d="${shape}" fill="${fill}" fill-rule="evenodd"/>` +
-  `<path d="${shape}" fill="${fill}" fill-rule="evenodd" transform="translate(${W} 0) scale(-1 1)"/>`;
+  [pick("ISOTIPO_FULL")]
+    .map((d) => `<path d="${d}" fill="${fill}" fill-rule="evenodd"/>`)
+    .join("");
+const [WW, WH] = viewBox(wordSource);
+const letters = [...wordSource.matchAll(/^ {2}"(M[^"]+)",$/gm)].map((m) => m[1]);
+if (letters.length === 0) throw new Error("No encuentro las letras en wordmark-paths.ts");
+const wordmark = (fill) =>
+  letters.map((d) => `<path d="${d}" fill="${fill}" fill-rule="evenodd"/>`).join("");
+
+// --- Logotipo como archivo: el encabezado y el pie lo usan de máscara (toma el color del texto) ---
+fs.writeFileSync(
+  path.join(root, "public/logotipo.svg"),
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WW} ${WH}">${wordmark("#000")}</svg>\n`,
+);
 
 // --- Ícono de la pestaña (SVG, se ve nítido en cualquier tamaño) ---
 const iconScale = 52 / W;
@@ -63,9 +79,9 @@ const background = `<svg xmlns="http://www.w3.org/2000/svg" width="${ogW}" heigh
 <rect width="100%" height="100%" fill="${INK}"/>
 <rect width="100%" height="100%" fill="url(#g1)"/>
 <rect width="100%" height="100%" fill="url(#g2)"/>
-<g transform="translate(80 90) scale(${ogScale})">${isotipo(GOLD)}</g>
-<text x="76" y="470" font-family="Cormorant Garamond, Garamond, Georgia, serif" font-size="128" letter-spacing="5" fill="${PAPER}">${NAME}</text>
-<text x="82" y="530" font-family="Archivo, Segoe UI, Arial, sans-serif" font-size="27" letter-spacing="2" fill="${MINT}">${TAGLINE}</text>
+<g transform="translate(80 110) scale(${ogScale})">${isotipo(GOLD)}</g>
+<g transform="translate(80 360) scale(${560 / WW})">${wordmark(PAPER)}</g>
+${TAGLINE.map((line, i) => `<text x="82" y="${525 + i * 38}" font-family="Archivo, Segoe UI, Arial, sans-serif" font-size="27" letter-spacing="2" fill="${MINT}">${line}</text>`).join("\n")}
 </svg>`;
 
 const shoeTiles = await Promise.all(

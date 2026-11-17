@@ -72,6 +72,7 @@ export default async function Home() {
         address={contact.address}
         hours={contact.hours}
         directionsLabel={footer.directions}
+        mapTitle={footer.mapTitle}
         whatsappLabel={footer.whatsappLabel}
         whatsappHref={whatsappDigits ? `https://wa.me/${whatsappDigits}` : ""}
         instagramLabel={footer.instagramLabel}

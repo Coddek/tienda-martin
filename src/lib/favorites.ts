@@ -65,6 +65,14 @@ export function toggleFavorite(favorite: Favorite) {
   );
 }
 
+export function removeFavorite(id: string) {
+  save(read().filter((f) => f.id !== id));
+}
+
+export function clearFavorites() {
+  save([]);
+}
+
 /** Si el modelo ya es favorito, actualiza el talle o el color elegidos. */
 export function updateFavorite(id: string, patch: Partial<Omit<Favorite, "id">>) {
   const current = read();

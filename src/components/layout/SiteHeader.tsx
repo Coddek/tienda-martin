@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WordmarkImage } from "@/components/brand/Wordmark";
 
 type Props = {
   name: string;
@@ -24,11 +25,8 @@ export function SiteHeader({ name, homeHref, catalogLabel, catalogHref, tone }: 
           : "border-b border-mint bg-paper text-ink"
       }`}
     >
-      <Link
-        href={homeHref}
-        className="font-display text-2xl leading-none tracking-[0.08em] uppercase lg:text-3xl"
-      >
-        {name}
+      <Link href={homeHref} className="block py-2" aria-label={name}>
+        <WordmarkImage label={name} className="h-5 lg:h-7" />
       </Link>
       <Link
         href={catalogHref}
