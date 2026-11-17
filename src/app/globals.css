@@ -66,12 +66,92 @@ html.lenis body {
   will-change: transform;
 }
 
-/* Sombra de apoyo bajo el producto (un tono más oscuro que el fondo). */
+/* Luces que derivan despacio detrás del isotipo y del zapato: le dan vida al fondo. */
+.stage-aurora {
+  background:
+    radial-gradient(42% 36% at 28% 34%, color-mix(in srgb, var(--brand-gold) 20%, transparent), transparent 70%),
+    radial-gradient(46% 40% at 74% 64%, color-mix(in srgb, var(--brand-mint) 16%, transparent), transparent 70%);
+  animation: aurora 14s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes aurora {
+  from {
+    transform: translate3d(-5%, -4%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(6%, 5%, 0) scale(1.18);
+  }
+}
+
+/* Cinta de palabras que corre sola. El contenido va duplicado para que no se note el corte. */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.outline-gold {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--brand-gold);
+}
+
+/* Fondo de las fotos de producto: luz arriba, y una sombra de apoyo abajo. */
+.product-tile {
+  background: radial-gradient(120% 95% at 50% 12%, var(--brand-paper) 0%, var(--brand-mint-soft) 72%);
+}
+.tile-shadow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--brand-ink) 38%, transparent),
+    transparent
+  );
+}
+
+/* Las tarjetas aparecen al entrar en pantalla. Solo CSS; donde no hay soporte, se ven fijas. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .card-reveal {
+      animation: card-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-aurora,
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* Palabra gigante de fondo: solo el contorno, muy tenue, para no competir con el texto. */
+.backdrop-word {
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--brand-mint) 38%, transparent);
+}
+
+/* Sombra de piso: una elipse chata bajo el producto, como si estuviera apoyado. */
 .stage-shadow {
   background: radial-gradient(
     closest-side,
-    color-mix(in srgb, var(--brand-ink) 35%, black) 0%,
-    transparent 75%
+    color-mix(in srgb, var(--brand-ink) 25%, black) 0%,
+    color-mix(in srgb, var(--brand-ink) 25%, transparent) 55%,
+    transparent 100%
   );
-  opacity: 0.75;
+  opacity: 0.85;
 }

@@ -10,6 +10,7 @@ import { Stage } from "./Stage";
 
 type Props = {
   shoes: readonly ShoeImage[];
+  backdropWords: readonly string[];
   children: ReactNode;
 };
 
@@ -23,11 +24,12 @@ type Slot = { x: number; y: number; rotation: number; scale: number };
  *   [data-chapter-text]              bloque de texto del capítulo
  *   [data-char]                      letras de los títulos (SplitTitle)
  *   [data-reveal]                    textos que entran con fundido
- *   [data-closing]                   cierre: el zapato se va
+ *   [data-bg]                        variable CSS del color de fondo de la sección
+ *   [data-closing]                   sección clara que cierra el recorrido: el zapato se va
  * Las alturas de scroll las define cada sección (Hero y Chapter); acá solo se
  * engancha a ellas. Con `prefers-reduced-motion` no se arma nada.
  */
-export function ScrollStory({ shoes, children }: Props) {
+export function ScrollStory({ shoes, backdropWords, children }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const isotipo = useRef<IsotipoHandle>(null);
   const shoe = useRef<HTMLDivElement>(null);
@@ -41,6 +43,9 @@ export function ScrollStory({ shoes, children }: Props) {
     if (!el || !shoeEl || !motionOk) return;
 
     gsap.registerPlugin(ScrollTrigger);
+    // En celular la barra del navegador aparece y desaparece al scrollear: eso no
+    // debe recalcular (y hacer saltar) toda la animación.
+    ScrollTrigger.config({ ignoreMobileResize: true });
     let cancelled = false;
     let stopLenis: (() => void) | undefined;
     // El isotipo expone un método (no es un nodo): se lee al momento de usarlo.
@@ -56,6 +61,15 @@ export function ScrollStory({ shoes, children }: Props) {
       const glow = q("[data-shoe-glow]")[0];
       const shadow = q("[data-shoe-shadow]")[0];
       const isotipoBox = q("[data-isotipo]")[0];
+      const stageBg = q("[data-stage-bg]")[0];
+      const words = q("[data-backdrop-word]");
+      const header = document.querySelector("[data-site-header]");
+
+      // Color de fondo de una sección, leído de su variable CSS de marca.
+      const rootStyle = getComputedStyle(document.documentElement);
+      const baseColor = getComputedStyle(stageBg).backgroundColor;
+      const colorOf = (section: HTMLElement | undefined) =>
+        (section?.dataset.bg && rootStyle.getPropertyValue(section.dataset.bg).trim()) || baseColor;
 
       // Dónde se para el zapato al llegar a cada capítulo, lejos del texto.
       const slot = (index: number): Slot => {
@@ -66,7 +80,8 @@ export function ScrollStory({ shoes, children }: Props) {
           const side = textSide === "left" ? 1 : -1;
           return { x: side * window.innerWidth * 0.235, y: 0, rotation: side * -9, scale: grow };
         }
-        return { x: 0, y: -window.innerHeight * 0.2, rotation: index % 2 ? 7 : -7, scale: grow };
+        // Celular: el zapato queda en el tercio de arriba; el texto usa la mitad de abajo.
+        return { x: 0, y: -window.innerHeight * 0.22, rotation: index % 2 ? 6 : -6, scale: 1 + (grow - 1) / 2 };
       };
       // Mientras el capítulo está fijo el zapato sigue girando y creciendo un poco.
       const slotEnd = (index: number): Slot => {
@@ -83,6 +98,8 @@ export function ScrollStory({ shoes, children }: Props) {
       gsap.set(shoeEl, { xPercent: -50, yPercent: -50, x: 0, y: 0, autoAlpha: 0 });
       gsap.set([glow, shadow], { autoAlpha: 0 });
       gsap.set(shoeImages.slice(1), { autoAlpha: 0 });
+      // La sombra de piso se achica cuando el zapato sube.
+      gsap.to(shadow, { scaleX: 0.9, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: -1 });
       gsap.to(q("[data-shoe-float]"), {
         y: -12,
         duration: 2.6,
@@ -93,13 +110,12 @@ export function ScrollStory({ shoes, children }: Props) {
 
       if (hero) {
         // El título entra letra por letra al cargar.
-        gsap.from(hero.querySelectorAll("[data-char]"), {
-          yPercent: 115,
-          duration: 1.1,
-          ease: "power4.out",
-          stagger: 0.07,
-          delay: 0.15,
-        });
+        // (fromTo con destino explícito: si el efecto se rearma, las letras nunca quedan escondidas)
+        gsap.fromTo(
+          hero.querySelectorAll("[data-char]"),
+          { yPercent: 115 },
+          { yPercent: 0, duration: 1.1, ease: "power4.out", stagger: 0.07, delay: 0.15 },
+        );
 
         // Al scrollear: el isotipo se abre como una puerta y el zapato sale
         // nítido entre las dos hojas (sin transparencias cruzadas).
@@ -195,6 +211,36 @@ export function ScrollStory({ shoes, children }: Props) {
             { x: () => slot(i).x * 0.06, duration: 1, ease: "power1.in", immediateRender: false },
             0,
           );
+        // …el fondo se funde al color del capítulo…
+        const fromColor = colorOf(chapters[i - 1]);
+        const toColor = colorOf(chapter);
+        if (fromColor !== toColor) {
+          travel.fromTo(
+            stageBg,
+            { backgroundColor: fromColor },
+            { backgroundColor: toColor, duration: 0.7, ease: "none", immediateRender: false },
+            0.15,
+          );
+        }
+        // …la palabra gigante cruza por detrás, de derecha a izquierda…
+        const word = words[i];
+        if (word) {
+          gsap.fromTo(
+            word,
+            { autoAlpha: 1, x: () => window.innerWidth },
+            {
+              x: () => -word.offsetWidth,
+              ease: "none",
+              scrollTrigger: {
+                trigger: chapter,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: 0.8,
+                invalidateOnRefresh: true,
+              },
+            },
+          );
+        }
         // …y cambia de modelo con fundido.
         if (i > 0 && shoeImages[i]) {
           travel
@@ -273,6 +319,17 @@ export function ScrollStory({ shoes, children }: Props) {
       });
 
       if (closing) {
+        // El recorrido termina en claro. Mientras el catálogo pasa por debajo del
+        // encabezado, este se vuelve sólido para que se lea.
+        if (header) {
+          ScrollTrigger.create({
+            trigger: closing,
+            start: "top 64px",
+            end: "bottom 64px",
+            onToggle: (self) => header.toggleAttribute("data-solid", self.isActive),
+          });
+        }
+        // La sección clara tiene fondo propio y sube como un telón sobre el escenario.
         gsap.fromTo(
           shoeEl,
           { autoAlpha: 1 },
@@ -307,7 +364,7 @@ export function ScrollStory({ shoes, children }: Props) {
     if (desktop) {
       import("lenis").then(({ default: Lenis }) => {
         if (cancelled) return;
-        const lenis = new Lenis();
+        const lenis = new Lenis({ anchors: true });
         lenis.on("scroll", ScrollTrigger.update);
         const tick = (time: number) => lenis.raf(time * 1000);
         gsap.ticker.add(tick);
@@ -323,13 +380,14 @@ export function ScrollStory({ shoes, children }: Props) {
       cancelled = true;
       stopLenis?.();
       ctx.revert();
+      document.querySelector("[data-site-header]")?.removeAttribute("data-solid");
       setSplit(0);
     };
   }, [motionOk, desktop]);
 
   return (
     <div ref={root} className="relative">
-      <Stage shoes={shoes} use3D={motionOk && desktop} isotipoRef={isotipo} shoeRef={shoe} />
+      <Stage shoes={shoes} backdropWords={backdropWords} use3D={motionOk && desktop} isotipoRef={isotipo} shoeRef={shoe} />
       <div className="relative z-10">{children}</div>
       <div aria-hidden="true" className="grain pointer-events-none fixed inset-0 z-20" />
     </div>

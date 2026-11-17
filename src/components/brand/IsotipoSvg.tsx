@@ -31,7 +31,8 @@ export function IsotipoSvg({ ref, className }: Props) {
   }));
 
   const shape = {
-    fill: `url(#${gradient})`,
+    // Si el degradé no se puede resolver, queda el dorado liso (currentColor).
+    fill: `url(#${gradient}) currentColor`,
     fillRule: "evenodd" as const,
     style: { transformBox: "fill-box" as const, transformOrigin: "center" },
   };
@@ -45,10 +46,10 @@ export function IsotipoSvg({ ref, className }: Props) {
     >
       <defs>
         <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="color-mix(in srgb, var(--brand-gold) 70%, var(--brand-paper))" />
-          <stop offset="0.45" stopColor="var(--brand-gold)" />
-          <stop offset="0.6" stopColor="color-mix(in srgb, var(--brand-gold) 45%, var(--brand-paper))" />
-          <stop offset="1" stopColor="color-mix(in srgb, var(--brand-gold) 80%, var(--brand-ink))" />
+          <stop offset="0" style={{ stopColor: "color-mix(in srgb, var(--brand-gold) 70%, var(--brand-paper))" }} />
+          <stop offset="0.45" style={{ stopColor: "var(--brand-gold)" }} />
+          <stop offset="0.6" style={{ stopColor: "color-mix(in srgb, var(--brand-gold) 45%, var(--brand-paper))" }} />
+          <stop offset="1" style={{ stopColor: "color-mix(in srgb, var(--brand-gold) 80%, var(--brand-ink))" }} />
         </linearGradient>
       </defs>
       <path ref={left} d={ISOTIPO_SHAPES.left} {...shape} />

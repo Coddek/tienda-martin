@@ -81,11 +81,12 @@ export default function Isotipo3D({ ref, className, heightRatio, onReady }: Prop
     scene.add(key);
 
     const material = new MeshPhysicalMaterial({
-      // Un metal refleja el entorno claro y se lava: se satura un poco el color de marca.
-      color: cssColor("--brand-gold").offsetHSL(0, 0.3, -0.06),
+      // El estudio claro lava el metal a plateado: se corre el color de marca hacia un
+      // amarillo más saturado y se baja la intensidad del reflejo.
+      color: cssColor("--brand-gold").offsetHSL(0.02, 0.35, 0),
       metalness: 1,
-      roughness: 0.26,
-      envMapIntensity: 0.9,
+      roughness: 0.28,
+      envMapIntensity: 0.5,
     });
 
     // Los mismos trazos que usa el SVG, extruidos.

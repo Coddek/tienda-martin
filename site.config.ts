@@ -13,12 +13,18 @@ export type ShoeImage = {
   placeholderLabel?: string;
 };
 
+export type BrandColor = "ink" | "inkSoft" | "paper" | "mint" | "mintSoft" | "gold" | "rust";
+
 export type ChapterContent = {
   id: string;
   number: string;
   eyebrow: string;
   title: string;
   body: string;
+  /** Color de fondo del capítulo (clave de `colors`). El fondo se funde de uno a otro al scrollear. */
+  background: BrandColor;
+  /** Palabra gigante en contorno que cruza por detrás del zapato. */
+  backdropWord: string;
   /** De qué lado va el texto en escritorio; el zapato va del otro. */
   textSide: "left" | "right";
   shoe: ShoeImage;
@@ -62,6 +68,7 @@ export const siteConfig = {
     whatsapp: "",
     instagram: "",
     address: "",
+    hours: "",
   },
 
   hero: {
@@ -70,50 +77,53 @@ export const siteConfig = {
     scrollHint: "Deslizá",
   },
 
-  chapters: [
-    {
-      id: "bienvenida",
-      number: "01",
-      eyebrow: "Bienvenida",
-      title: "Un paso adentro",
-      body: "Somos un local de familia. Te ayudamos a elegir, te lo probás tranquila y te llevás el par que de verdad vas a usar.",
-      textSide: "left",
-      shoe: {
-        src: "/placeholders/vizzano-6576-203.webp",
-        width: 751,
-        height: 476,
-        alt: "Sandalia dorada de taco bajo con tiras anudadas",
-        placeholderLabel: "Foto de ejemplo · catálogo Vizzano",
-      },
-    },
-    {
-      id: "todos-los-dias",
-      number: "02",
-      eyebrow: "Para todos los días",
-      title: "Del lunes al domingo",
-      body: "Tacos que se bancan el día entero, hormas cómodas y precios que cierran. Elegante, pero para usar.",
-      textSide: "right",
-      shoe: {
-        src: "/placeholders/vizzano-1475-202.webp",
-        width: 719,
-        height: 497,
-        alt: "Zapato plateado en punta con taco cuadrado y pulsera",
-        placeholderLabel: "Foto de ejemplo · catálogo Vizzano",
-      },
-    },
-  ] satisfies ChapterContent[],
+  /**
+   * Destacados de la portada: lo más vendido, lo que está de moda o lo que haya
+   * en stock. Se cambia acá (más adelante, desde el panel). El primero es el que
+   * aparece en grande al abrirse el isotipo.
+   */
+  featured: {
+    eyebrow: "Esta semana",
+    title: "Lo más elegido",
+    backdropWord: "Favoritos",
+    background: "ink" satisfies BrandColor,
+    textSide: "left" as "left" | "right",
+    productIds: [
+      "sandalia-nudo-dorada",
+      "zapato-pulsera-plata",
+      "sandalia-lazo-negra",
+      "botineta-chocolate",
+    ],
+    cta: "Ver todo el catálogo",
+    placeholderLabel: "Foto de ejemplo · catálogo Vizzano",
+  },
 
   nav: {
     catalogLabel: "Catálogo",
     catalogHref: "/catalogo",
+    /** Ancla del catálogo dentro de la portada. */
+    catalogAnchor: "catalogo",
     homeHref: "/",
   },
 
-  closing: {
-    eyebrow: "Seguí por acá",
-    title: "La colección",
-    body: "Todos los modelos con precio y talles. Elegís el tuyo y lo consultás por WhatsApp.",
-    cta: "Ver el catálogo",
+  /** Botón flotante de WhatsApp (consulta general, sin producto). */
+  whatsappFab: {
+    label: "Escribinos por WhatsApp",
+    message: "Hola Martin! Quiero hacer una consulta.",
+  },
+
+  /** Cinta de palabras que corre entre los destacados y el catálogo. */
+  marquee: ["Sandalias", "Zapatos", "Botas", "Urbanas", "Vizzano"],
+
+  footer: {
+    directions: "Cómo llegar",
+    visitTitle: "Vení al local",
+    contactTitle: "Escribinos",
+    whatsappLabel: "WhatsApp",
+    instagramLabel: "Instagram",
+    /** Se muestra en lugar de un dato de contacto que todavía no se cargó. */
+    pending: "A completar",
+    note: "Sitio en preparación. Fotos, precios y talles de ejemplo.",
   },
 
   catalog: {
@@ -122,6 +132,16 @@ export const siteConfig = {
     exampleNotice:
       "Catálogo de ejemplo: fotos del catálogo de Vizzano, nombres, precios y talles inventados.",
     allLabel: "Todos",
+    /** Filtro "tengo 37": muestra solo lo que hay en ese número. */
+    sizeFilterLabel: "Tu talle",
+    emptyLabel: "No hay modelos con esos filtros. Probá con otro talle o categoría.",
+    /** Etiquetas de las tarjetas (clave = `tag` del producto). */
+    tags: { nuevo: "Nuevo", ultimos: "Últimos pares", oferta: "Oferta" },
+    viewProduct: "Ver detalle",
+    share: "Compartir",
+    shared: "Enlace copiado",
+    related: "También te puede gustar",
+    backToCatalog: "Volver al catálogo",
     sizeLabel: "Talle",
     pickSize: "Elegí tu talle",
     soldOut: "Sin stock",

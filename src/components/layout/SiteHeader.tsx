@@ -17,8 +17,11 @@ export function SiteHeader({ name, homeHref, catalogLabel, catalogHref, tone }: 
   const dark = tone === "dark";
   return (
     <header
+      data-site-header
       className={`fixed inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-3 lg:px-10 lg:py-4 ${
-        dark ? "text-paper" : "border-b border-mint bg-paper text-ink"
+        dark
+          ? "text-paper transition-colors duration-300 motion-reduce:absolute data-[solid]:bg-paper data-[solid]:text-ink"
+          : "border-b border-mint bg-paper text-ink"
       }`}
     >
       <Link
@@ -29,7 +32,7 @@ export function SiteHeader({ name, homeHref, catalogLabel, catalogHref, tone }: 
       </Link>
       <Link
         href={catalogHref}
-        className="inline-flex min-h-11 items-center rounded-full bg-rust px-6 text-sm font-semibold tracking-[0.12em] text-paper uppercase transition-transform hover:scale-[1.04]"
+        className="inline-flex min-h-11 items-center rounded-full bg-rust px-5 text-sm font-semibold tracking-[0.12em] text-paper uppercase transition-transform hover:scale-[1.04]"
       >
         {catalogLabel}
       </Link>

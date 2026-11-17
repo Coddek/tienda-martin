@@ -1,0 +1,63 @@
+import type { ElementType } from "react";
+import { allSizes, categories, products } from "@/data/products";
+import { siteConfig } from "../../../site.config";
+import { CatalogGrid } from "./CatalogGrid";
+
+type Props = {
+  /** Nivel del título: h1 en la página del catálogo, h2 dentro de la portada. */
+  headingAs?: ElementType;
+  className?: string;
+};
+
+/** Catálogo completo: título, aviso de ejemplo, cómo comprar y la grilla con filtros. */
+export function CatalogSection({ headingAs: Heading = "h2", className }: Props) {
+  const { catalog, contact, locale, preview } = siteConfig;
+  return (
+    <div className={`mx-auto max-w-[1300px] px-5 lg:px-10 ${className ?? ""}`}>
+      <p className="text-xs font-medium tracking-[0.18em] text-ink-soft uppercase lg:text-sm">
+        {catalog.eyebrow}
+      </p>
+      <Heading className="mt-2 font-display text-6xl leading-[0.95] text-ink lg:text-8xl">
+        {catalog.title}
+      </Heading>
+
+      {preview ? (
+        <p className="mt-5 rounded-xl border border-dashed border-ink-soft px-4 py-3 text-sm text-ink-soft">
+          {catalog.exampleNotice}
+        </p>
+      ) : null}
+
+      <ol className="mt-6 mb-4 grid gap-3 sm:grid-cols-3">
+        {catalog.howToBuy.map((step, i) => (
+          <li key={step.title} className="flex gap-4 rounded-2xl bg-mint-soft px-5 py-4">
+            <span className="font-display text-4xl leading-none text-ink-soft">{i + 1}</span>
+            <span>
+              <span className="block font-semibold text-ink">{step.title}</span>
+              <span className="mt-1 block text-sm leading-relaxed text-ink-soft">{step.body}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      <CatalogGrid
+        products={products}
+        categories={categories}
+        sizes={allSizes}
+        allLabel={catalog.allLabel}
+        sizeFilterLabel={catalog.sizeFilterLabel}
+        emptyLabel={catalog.emptyLabel}
+        labels={{
+          tags: catalog.tags,
+          viewProduct: catalog.viewProduct,
+          sizeLabel: catalog.sizeLabel,
+          pickSize: catalog.pickSize,
+          soldOut: catalog.soldOut,
+          cta: catalog.cta,
+          whatsappMessage: catalog.whatsappMessage,
+        }}
+        whatsapp={contact.whatsapp}
+        locale={locale}
+      />
+    </div>
+  );
+}

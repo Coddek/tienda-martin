@@ -6,6 +6,8 @@
 
 export type ProductSize = { size: number; available: boolean };
 
+export type ProductTag = "nuevo" | "ultimos" | "oferta";
+
 export type Product = {
   id: string;
   /** Referencia del fabricante. */
@@ -14,6 +16,9 @@ export type Product = {
   category: string;
   /** Precio en pesos, sin decimales. */
   price: number;
+  /** Precio anterior, tachado (solo en ofertas). */
+  compareAtPrice?: number;
+  tag?: ProductTag;
   image: { src: string; width: number; height: number; alt: string };
   sizes: ProductSize[];
 };
@@ -36,6 +41,7 @@ export const products: Product[] = [
     name: "Sandalia Nudo dorada",
     category: "Sandalias",
     price: 64900,
+    tag: "nuevo",
     image: photo("6576-203", 751, 476, "Sandalia dorada de taco bajo con tiras anudadas"),
     sizes: sizes(35),
   },
@@ -53,7 +59,9 @@ export const products: Product[] = [
     ref: "1456.200",
     name: "Stiletto bajo cobre",
     category: "Zapatos",
-    price: 68900,
+    price: 59900,
+    compareAtPrice: 68900,
+    tag: "oferta",
     image: photo("1456-200", 750, 472, "Stiletto de taco bajo color cobre metalizado"),
     sizes: sizes(35, 39),
   },
@@ -72,6 +80,7 @@ export const products: Product[] = [
     name: "Sandalia Lazo negra",
     category: "Sandalias",
     price: 74900,
+    tag: "ultimos",
     image: photo("6464-152", 504, 512, "Sandalia negra de taco cuadrado atada al tobillo"),
     sizes: sizes(36, 40),
   },
@@ -108,6 +117,7 @@ export const products: Product[] = [
     name: "Botineta chocolate",
     category: "Botas",
     price: 89900,
+    tag: "nuevo",
     image: photo("3077-125", 618, 503, "Botineta baja color chocolate con cierre lateral"),
     sizes: sizes(37),
   },
@@ -121,5 +131,11 @@ export const products: Product[] = [
     sizes: sizes(35, 40),
   },
 ];
+
+export const allSizes = Array.from(
+  new Set(products.flatMap((product) => product.sizes.map((s) => s.size))),
+).sort((a, b) => a - b);
+
+export const getProduct = (id: string) => products.find((product) => product.id === id);
 
 export const categories = Array.from(new Set(products.map((product) => product.category)));
