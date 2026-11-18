@@ -14,7 +14,7 @@ export default function NotFound() {
         catalogLabel={nav.catalogLabel}
         catalogHref={nav.catalogHref}
       />
-      <main className="mx-auto flex w-full max-w-[900px] flex-1 flex-col justify-center px-5 pt-28 pb-24 lg:px-10">
+      <main className="mx-auto flex w-full max-w-[900px] flex-1 flex-col justify-center px-5 pt-[calc(7rem+var(--announce-h,0px))] pb-24 lg:px-10">
         <p className="text-sm font-medium tracking-[0.16em] text-ink-soft uppercase">
           {notFound.eyebrow}
         </p>

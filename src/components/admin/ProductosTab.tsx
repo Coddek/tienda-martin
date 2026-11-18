@@ -18,24 +18,51 @@ import {
 import type { CutoutResult } from "@/lib/cutout";
 import { photoPublicUrl } from "@/lib/supabase-browser";
 import { PhotoPicker } from "./PhotoPicker";
+import { PriceFields, priceFields, type PriceValues } from "./PriceFields";
+import { OrdenarView, PreciosView } from "./ProductosTools";
 import { btn, Card, ErrorText, Field, formatPesos, inputClass, SizeGrid } from "./ui";
 
 type Props = {
   productos: Producto[];
   categorias: string[];
+  margenGeneral: number;
   onSaved: () => Promise<void>;
 };
 
-/** Lista de modelos con buscador; al tocar uno se edita. */
-export function ProductosTab({ productos, categorias, onSaved }: Props) {
+type Filtro = "todos" | "ocultos" | "sinFoto" | "reponer" | "destacados";
+
+/** Talles en 0 de cada color: lo que hay que reponer. */
+const agotados = (p: Producto) =>
+  p.colores
+    .map((c) => ({ color: c.nombre, talles: c.talles.filter((t) => t.stock <= 0).map((t) => t.talle_ar) }))
+    .filter((c) => c.talles.length > 0);
+
+/** Se ve en la página: activo, con al menos un color visible con foto. */
+const enLaPagina = (p: Producto) => p.activo && p.colores.some((c) => c.activo && c.foto_path);
+
+const FILTROS: { id: Filtro; label: string; test: (p: Producto) => boolean }[] = [
+  { id: "todos", label: "Todos", test: () => true },
+  { id: "ocultos", label: "Ocultos", test: (p) => !p.activo },
+  { id: "sinFoto", label: "Sin foto", test: (p) => p.colores.length === 0 || p.colores.some((c) => !c.foto_path) },
+  { id: "reponer", label: "Para reponer", test: (p) => agotados(p).length > 0 },
+  { id: "destacados", label: "Destacados", test: (p) => p.destacado },
+];
+
+/** Lista de modelos con buscador y filtros; al tocar uno se edita. */
+export function ProductosTab({ productos, categorias, margenGeneral, onSaved }: Props) {
   const [query, setQuery] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [view, setView] = useState<"lista" | "ordenar" | "precios">("lista");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const open = productos.find((p) => p.id === openId);
 
   const list = useMemo(() => {
     const q = slugify(query);
-    return q ? productos.filter((p) => slugify(`${p.nombre} ${p.ref} ${p.categoria}`).includes(q)) : productos;
-  }, [productos, query]);
+    const test = FILTROS.find((f) => f.id === filtro)!.test;
+    return productos.filter((p) => test(p) && (!q || slugify(`${p.nombre} ${p.ref} ${p.categoria}`).includes(q)));
+  }, [productos, query, filtro]);
 
   if (open) {
     return (
@@ -43,38 +70,101 @@ export function ProductosTab({ productos, categorias, onSaved }: Props) {
         key={open.id}
         producto={open}
         categorias={categorias}
+        margenGeneral={margenGeneral}
         onSaved={onSaved}
         onClose={() => setOpenId(null)}
       />
     );
   }
+  if (view === "ordenar") return <OrdenarView productos={productos} onSaved={onSaved} onClose={() => setView("lista")} />;
+  if (view === "precios") {
+    return (
+      <PreciosView
+        productos={productos}
+        categorias={categorias}
+        margenGeneral={margenGeneral}
+        onSaved={onSaved}
+        onClose={() => setView("lista")}
+      />
+    );
+  }
+
+  const toggleVisible = async (p: Producto) => {
+    setToggling(p.id);
+    setError(null);
+    try {
+      await actualizarProducto(p.id, { activo: !p.activo });
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cambiar.");
+    } finally {
+      setToggling(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="font-display text-3xl">Productos</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-3xl">Productos</h2>
+        {productos.length > 0 ? (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setView("precios")} className={`${btn.secondary} min-h-11 px-4 text-sm`}>
+              Precios
+            </button>
+            <button type="button" onClick={() => setView("ordenar")} className={`${btn.secondary} min-h-11 px-4 text-sm`}>
+              Orden
+            </button>
+          </div>
+        ) : null}
+      </div>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Buscar por nombre, referencia o categoría"
         className={inputClass}
       />
+      {productos.length > 0 ? (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Filtrar">
+          {FILTROS.map((f) => {
+            const n = productos.filter(f.test).length;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={filtro === f.id}
+                onClick={() => setFiltro(f.id)}
+                className={`min-h-11 shrink-0 rounded-full border px-4 text-sm whitespace-nowrap ${
+                  filtro === f.id ? "border-ink bg-ink text-paper" : "border-ink-soft"
+                }`}
+              >
+                {f.label} <span className={filtro === f.id ? "text-mint" : "text-ink-soft"}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <ErrorText>{error}</ErrorText>
       {productos.length === 0 ? (
         <Card>
           <p className="text-ink-soft">
             Todavía no hay modelos cargados. Se crean desde <strong>Cargar</strong>, escaneando la primera caja de cada uno.
           </p>
         </Card>
+      ) : list.length === 0 ? (
+        <p className="py-6 text-center text-sm text-ink-soft">No hay modelos con este filtro.</p>
       ) : null}
       <ul className="flex flex-col gap-2">
         {list.map((p) => {
           const photo = p.colores.find((c) => c.foto_path)?.foto_path;
           const stock = totalStock(p);
+          const faltan = filtro === "reponer" ? agotados(p) : [];
+          const visible = enLaPagina(p);
           return (
-            <li key={p.id}>
+            <li key={p.id} className="flex items-stretch gap-2">
               <button
                 type="button"
                 onClick={() => setOpenId(p.id)}
-                className="flex w-full items-center gap-3 rounded-3xl border border-mint bg-paper p-3 text-left hover:border-ink"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-3xl border border-mint bg-paper p-3 text-left hover:border-ink"
               >
                 <span className="product-tile relative block h-16 w-20 shrink-0 overflow-hidden rounded-2xl">
                   {photo ? (
@@ -90,19 +180,52 @@ export function ProductosTab({ productos, categorias, onSaved }: Props) {
                     <span className={stock > 0 ? "text-ink" : "text-rust"}>
                       {stock > 0 ? `${stock} ${stock === 1 ? "par" : "pares"}` : "Sin stock"}
                     </span>
-                    {!p.activo ? <span className="rounded-full bg-ink-soft px-2 text-paper">Oculto</span> : null}
+                    {p.activo && !visible ? <span className="text-rust">No se ve: falta foto</span> : null}
                     {p.destacado ? <span className="rounded-full bg-gold px-2 text-ink">Destacado</span> : null}
                   </span>
+                  {faltan.length ? (
+                    <span className="mt-1 block text-xs text-rust">
+                      Faltan: {faltan.map((f) => `${f.color} ${f.talles.join(", ")}`).join(" · ")}
+                    </span>
+                  ) : null}
                 </span>
-                <span aria-hidden="true" className="text-xl text-ink-soft">
-                  ›
-                </span>
+              </button>
+              <button
+                type="button"
+                disabled={toggling === p.id}
+                aria-pressed={p.activo}
+                aria-label={p.activo ? `Ocultar ${p.nombre} de la página` : `Mostrar ${p.nombre} en la página`}
+                onClick={() => toggleVisible(p)}
+                className={`flex w-18 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl border text-[0.7rem] font-semibold disabled:opacity-50 ${
+                  p.activo ? "border-mint text-ink" : "border-ink-soft bg-ink-soft text-paper"
+                }`}
+              >
+                <EyeIcon off={!p.activo} />
+                {p.activo ? "Visible" : "Oculto"}
               </button>
             </li>
           );
         })}
       </ul>
     </div>
+  );
+}
+
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {off ? <path d="M4 4l16 16" /> : null}
+    </svg>
   );
 }
 
@@ -116,18 +239,24 @@ const ETIQUETAS: { value: Etiqueta | ""; label: string }[] = [
 function ProductEditor({
   producto,
   categorias,
+  margenGeneral,
   onSaved,
   onClose,
 }: {
   producto: Producto;
   categorias: string[];
+  margenGeneral: number;
   onSaved: () => Promise<void>;
   onClose: () => void;
 }) {
   const [nombre, setNombre] = useState(producto.nombre);
   const [ref, setRef] = useState(producto.ref);
   const [categoria, setCategoria] = useState(producto.categoria);
-  const [precio, setPrecio] = useState(String(producto.precio));
+  const [prices, setPrices] = useState<PriceValues>({
+    costo: producto.costo ? String(producto.costo) : "",
+    margen: producto.margen != null ? String(producto.margen) : "",
+    precio: String(producto.precio),
+  });
   const [anterior, setAnterior] = useState(producto.precio_anterior ? String(producto.precio_anterior) : "");
   const [etiqueta, setEtiqueta] = useState<Etiqueta | "">(producto.etiqueta ?? "");
   const [destacado, setDestacado] = useState(producto.destacado);
@@ -138,7 +267,7 @@ function ProductEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingColor, setAddingColor] = useState(false);
 
-  const price = Number(precio);
+  const { costo, margen, precio: price } = priceFields(prices);
   const before = anterior ? Number(anterior) : null;
   const priceError =
     !(price > 0) ? "Poné un precio." : before != null && before <= price ? "El precio anterior tiene que ser mayor." : null;
@@ -153,6 +282,8 @@ function ProductEditor({
         ref: ref.trim(),
         categoria: categoria.trim(),
         precio: price,
+        costo,
+        margen,
         precio_anterior: before,
         etiqueta: etiqueta || null,
         destacado,
@@ -213,24 +344,15 @@ function ProductEditor({
             </datalist>
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Precio">
-            <input
-              inputMode="numeric"
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Precio anterior" hint="Solo en ofertas: se ve tachado.">
-            <input
-              inputMode="numeric"
-              value={anterior}
-              onChange={(e) => setAnterior(e.target.value.replace(/\D/g, ""))}
-              className={inputClass}
-            />
-          </Field>
-        </div>
+        <PriceFields values={prices} onChange={setPrices} margenGeneral={margenGeneral} />
+        <Field label="Precio anterior" hint="Solo en ofertas: se ve tachado al lado del precio.">
+          <input
+            inputMode="numeric"
+            value={anterior}
+            onChange={(e) => setAnterior(e.target.value.replace(/\D/g, ""))}
+            className={inputClass}
+          />
+        </Field>
         <Field label="Etiqueta en la foto">
           <div className="flex flex-wrap gap-2">
             {ETIQUETAS.map((e) => (
@@ -370,6 +492,12 @@ function ColorEditor({
           ) : null}
         </div>
       </div>
+      <Toggle
+        label="Este color se ve en la página"
+        hint="Apagalo si no querés mostrarlo (el resto del modelo sigue)."
+        checked={color.activo}
+        onChange={(activo) => run(() => actualizarColor(color.id, { activo }))}
+      />
 
       {changingPhoto ? (
         <div className="flex flex-col gap-3">

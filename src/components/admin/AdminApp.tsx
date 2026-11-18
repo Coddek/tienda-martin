@@ -4,20 +4,25 @@ import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState, type SubmitEvent } from "react";
 import { refrescarCatalogo } from "@/app/admin/actions";
 import { WordmarkImage } from "@/components/brand/Wordmark";
-import { loadProductos, type Producto } from "@/lib/admin-data";
+import { loadAjustes, loadProductos, type Ajustes, type Producto } from "@/lib/admin-data";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { IngresoTab } from "./IngresoTab";
 import { MovimientosTab } from "./MovimientosTab";
+import { PaginaTab } from "./PaginaTab";
 import { ProductosTab } from "./ProductosTab";
 import { btn, ErrorText, Field, inputClass } from "./ui";
 
-type Tab = "cargar" | "productos" | "historial";
+type Tab = "cargar" | "productos" | "pagina" | "historial";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "cargar", label: "Cargar" },
   { id: "productos", label: "Productos" },
+  { id: "pagina", label: "Página" },
   { id: "historial", label: "Historial" },
 ];
+
+/** Si todavía no se corrió el SQL con los ajustes, se sugiere con esto. */
+const MARGEN_POR_DEFECTO = 110;
 
 /** Las categorías de siempre, más las que ya se usaron. */
 const BASE_CATEGORIES = ["Sandalias", "Zapatos", "Botas", "Zapatillas"];
@@ -126,15 +131,21 @@ function Login({ error }: { error: string | null }) {
 function Editor({ session, nombre }: { session: Session; nombre: string | null }) {
   const [tab, setTab] = useState<Tab>("cargar");
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [ajustes, setAjustes] = useState<Ajustes | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    try {
-      setProductos(await loadProductos());
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudieron cargar los productos.");
-    }
+    const [prods, aj] = await Promise.allSettled([loadProductos(), loadAjustes()]);
+    if (prods.status === "fulfilled") setProductos(prods.value);
+    if (aj.status === "fulfilled") setAjustes(aj.value);
+    const failed = [prods, aj].find((r) => r.status === "rejected");
+    setError(
+      failed && failed.status === "rejected"
+        ? failed.reason instanceof Error
+          ? failed.reason.message
+          : "No se pudieron cargar los datos."
+        : null,
+    );
   }, []);
 
   useEffect(() => {
@@ -152,6 +163,8 @@ function Editor({ session, nombre }: { session: Session; nombre: string | null }
       // Si falla, la página igual se actualiza sola en un minuto.
     }
   }, [reload, session.access_token]);
+
+  const margenGeneral = ajustes?.margen_general ?? MARGEN_POR_DEFECTO;
 
   const categorias = useMemo(
     () => Array.from(new Set([...BASE_CATEGORIES, ...productos.map((p) => p.categoria)])),
@@ -178,8 +191,19 @@ function Editor({ session, nombre }: { session: Session; nombre: string | null }
 
       <ErrorText>{error}</ErrorText>
 
-      {tab === "cargar" ? <IngresoTab productos={productos} categorias={categorias} onSaved={onSaved} /> : null}
-      {tab === "productos" ? <ProductosTab productos={productos} categorias={categorias} onSaved={onSaved} /> : null}
+      {tab === "cargar" ? (
+        <IngresoTab productos={productos} categorias={categorias} margenGeneral={margenGeneral} onSaved={onSaved} />
+      ) : null}
+      {tab === "productos" ? (
+        <ProductosTab productos={productos} categorias={categorias} margenGeneral={margenGeneral} onSaved={onSaved} />
+      ) : null}
+      {tab === "pagina" ? (
+        ajustes ? (
+          <PaginaTab ajustes={ajustes} productos={productos} onSaved={onSaved} />
+        ) : (
+          <p className="py-10 text-center text-ink-soft">Cargando…</p>
+        )
+      ) : null}
       {tab === "historial" ? <MovimientosTab /> : null}
 
       {/* Pestañas abajo, a mano del pulgar. */}
@@ -187,14 +211,14 @@ function Editor({ session, nombre }: { session: Session; nombre: string | null }
         aria-label="Secciones del editor"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-mint bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-3">
+        <div className="mx-auto grid max-w-xl grid-cols-4">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               aria-current={tab === t.id ? "page" : undefined}
               onClick={() => setTab(t.id)}
-              className={`min-h-16 text-sm font-semibold tracking-[0.06em] uppercase ${
+              className={`min-h-16 text-xs font-semibold tracking-[0.04em] uppercase sm:text-sm ${
                 tab === t.id ? "text-ink" : "text-ink-soft"
               }`}
             >

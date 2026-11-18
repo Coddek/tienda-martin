@@ -96,6 +96,34 @@ CREATE INDEX IF NOT EXISTS idx_tienda_movimientos_talle ON tienda_movimientos(ta
 CREATE INDEX IF NOT EXISTS idx_tienda_movimientos_venta ON tienda_movimientos(venta_id);
 CREATE INDEX IF NOT EXISTS idx_tienda_movimientos_usuario ON tienda_movimientos(usuario_id);
 
+-- Agregados después (se suman sin tocar lo que ya está cargado).
+-- Costo de lista y % de ganancia propio del modelo (null = usa el general de
+-- tienda_ajustes). El precio de venta se sugiere con eso, pero se edita libre.
+-- El costo nunca sale en la página: la función pública no lo devuelve.
+ALTER TABLE tienda_productos ADD COLUMN IF NOT EXISTS costo INTEGER CHECK (costo IS NULL OR costo > 0);
+ALTER TABLE tienda_productos ADD COLUMN IF NOT EXISTS margen NUMERIC(6,2) CHECK (margen IS NULL OR margen BETWEEN 0 AND 1000);
+-- false = ese color no se muestra en la página (el resto del modelo sí).
+ALTER TABLE tienda_colores ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT true;
+
+-- Ajustes de la tienda: una sola fila. Lo vacío usa lo de site.config.ts.
+CREATE TABLE IF NOT EXISTS tienda_ajustes (
+  id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+  -- % que se suma al costo para sugerir el precio (110 = costo × 2,1).
+  margen_general NUMERIC(6,2) NOT NULL DEFAULT 110 CHECK (margen_general BETWEEN 0 AND 1000),
+  -- Cartel de arriba de la página ("20% off en efectivo").
+  anuncio_texto TEXT CHECK (anuncio_texto IS NULL OR char_length(anuncio_texto) <= 120),
+  anuncio_activo BOOLEAN NOT NULL DEFAULT false,
+  -- Número con código de país, solo dígitos (5491112345678).
+  whatsapp TEXT CHECK (whatsapp IS NULL OR whatsapp ~ '^[0-9]{8,15}$'),
+  -- Usuario sin @.
+  instagram TEXT CHECK (instagram IS NULL OR instagram ~ '^[A-Za-z0-9._]{1,30}$'),
+  direccion TEXT CHECK (direccion IS NULL OR char_length(direccion) <= 160),
+  horario TEXT CHECK (horario IS NULL OR char_length(horario) <= 120),
+  medios_pago TEXT CHECK (medios_pago IS NULL OR char_length(medios_pago) <= 200),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO tienda_ajustes (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
+
 -- ---------- STOCK ----------
 
 -- Cada movimiento suma o resta al talle. Si se vende un par que figuraba en 0,
@@ -183,6 +211,11 @@ CREATE TRIGGER trg_tienda_productos_updated_at
   BEFORE UPDATE ON tienda_productos
   FOR EACH ROW EXECUTE FUNCTION tienda_tocar_updated_at();
 
+DROP TRIGGER IF EXISTS trg_tienda_ajustes_updated_at ON tienda_ajustes;
+CREATE TRIGGER trg_tienda_ajustes_updated_at
+  BEFORE UPDATE ON tienda_ajustes
+  FOR EACH ROW EXECUTE FUNCTION tienda_tocar_updated_at();
+
 -- ---------- CATÁLOGO PÚBLICO ----------
 
 -- Lo único que ve la página (sin sesión): modelos activos con al menos un
@@ -238,16 +271,36 @@ AS $$
             ORDER BY c.orden, c.created_at
           )
           FROM tienda_colores c
-          WHERE c.producto_id = pr.id AND c.foto_path IS NOT NULL
+          WHERE c.producto_id = pr.id AND c.foto_path IS NOT NULL AND c.activo
         )
       ) AS item
     FROM tienda_productos pr
     WHERE pr.activo
       AND EXISTS (
         SELECT 1 FROM tienda_colores c
-        WHERE c.producto_id = pr.id AND c.foto_path IS NOT NULL
+        WHERE c.producto_id = pr.id AND c.foto_path IS NOT NULL AND c.activo
       )
   ) p;
+$$;
+
+-- Lo público de los ajustes (sin el margen): cartel y datos del local.
+CREATE OR REPLACE FUNCTION tienda_pagina_publica()
+RETURNS JSONB
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'anuncio', CASE WHEN a.anuncio_activo AND nullif(trim(a.anuncio_texto), '') IS NOT NULL THEN trim(a.anuncio_texto) END,
+    'whatsapp', a.whatsapp,
+    'instagram', a.instagram,
+    'direccion', nullif(trim(a.direccion), ''),
+    'horario', nullif(trim(a.horario), ''),
+    'mediosPago', nullif(trim(a.medios_pago), '')
+  )
+  FROM tienda_ajustes a
+  WHERE a.id;
 $$;
 
 -- ---------- RLS ----------
@@ -283,6 +336,18 @@ CREATE POLICY "tienda_codigos_usuarios_caja" ON tienda_codigos
   USING (is_usuario_caja((select auth.uid())))
   WITH CHECK (is_usuario_caja((select auth.uid())));
 
+-- Ajustes: una sola fila que ya existe; se lee y se edita, no se agrega ni se borra.
+ALTER TABLE tienda_ajustes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "tienda_ajustes_select" ON tienda_ajustes;
+CREATE POLICY "tienda_ajustes_select" ON tienda_ajustes
+  FOR SELECT TO authenticated
+  USING (is_usuario_caja((select auth.uid())));
+DROP POLICY IF EXISTS "tienda_ajustes_update" ON tienda_ajustes;
+CREATE POLICY "tienda_ajustes_update" ON tienda_ajustes
+  FOR UPDATE TO authenticated
+  USING (is_usuario_caja((select auth.uid())))
+  WITH CHECK (is_usuario_caja((select auth.uid())));
+
 -- Movimientos: se leen y se agregan, nunca se editan (ver trigger).
 DROP POLICY IF EXISTS "tienda_movimientos_select" ON tienda_movimientos;
 CREATE POLICY "tienda_movimientos_select" ON tienda_movimientos
@@ -300,6 +365,10 @@ CREATE POLICY "tienda_movimientos_insert" ON tienda_movimientos
 REVOKE ALL ON tienda_productos, tienda_colores, tienda_talles, tienda_codigos, tienda_movimientos FROM anon;
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON tienda_productos, tienda_colores, tienda_talles, tienda_codigos, tienda_movimientos FROM authenticated;
 REVOKE UPDATE, DELETE ON tienda_movimientos FROM authenticated;
+REVOKE ALL ON tienda_ajustes FROM anon;
+REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON tienda_ajustes FROM authenticated;
+REVOKE EXECUTE ON FUNCTION tienda_pagina_publica() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tienda_pagina_publica() TO anon, authenticated;
 
 REVOKE EXECUTE ON FUNCTION tienda_catalogo_publico() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tienda_catalogo_publico() TO anon, authenticated;
@@ -478,3 +547,99 @@ REVOKE EXECUTE ON FUNCTION tienda_buscar_modelos(TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION tienda_talles_de_color(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION tienda_buscar_codigo(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION tienda_buscar_modelos(TEXT) TO authenticated;
+
+-- ---------- EDITOR: ORDEN Y PRECIOS ----------
+
+-- Orden del catálogo (y de los destacados): la lista de ids en el orden nuevo.
+CREATE OR REPLACE FUNCTION tienda_ordenar(p_ids UUID[])
+RETURNS VOID
+LANGUAGE sql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  UPDATE tienda_productos p
+  SET orden = x.pos
+  FROM unnest(p_ids) WITH ORDINALITY AS x(id, pos)
+  WHERE p.id = x.id AND p.orden IS DISTINCT FROM x.pos::INTEGER;
+$$;
+
+-- Redondea para arriba al múltiplo de p_redondeo (1 = sin redondear).
+CREATE OR REPLACE FUNCTION tienda_redondear(p_valor NUMERIC, p_redondeo INTEGER)
+RETURNS INTEGER
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+  SELECT (ceil(p_valor / greatest(p_redondeo, 1)) * greatest(p_redondeo, 1))::INTEGER;
+$$;
+
+-- Aumento (o baja) en lote: p_porcentaje 10 = +10%. El precio anterior (tachado)
+-- se mueve igual; si queda igual o menor al nuevo, se saca. Todo o nada.
+CREATE OR REPLACE FUNCTION tienda_ajustar_precios(p_ids UUID[], p_porcentaje NUMERIC, p_redondeo INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_cambiados INTEGER;
+BEGIN
+  IF p_porcentaje IS NULL OR p_porcentaje <= -90 OR p_porcentaje > 500 THEN
+    RAISE EXCEPTION 'Porcentaje fuera de rango';
+  END IF;
+  WITH nuevos AS (
+    SELECT id,
+      tienda_redondear(precio * (1 + p_porcentaje / 100), p_redondeo) AS precio,
+      CASE WHEN precio_anterior IS NOT NULL
+        THEN tienda_redondear(precio_anterior * (1 + p_porcentaje / 100), p_redondeo) END AS anterior
+    FROM tienda_productos
+    WHERE id = ANY(p_ids)
+  )
+  UPDATE tienda_productos p
+  SET precio = n.precio,
+      precio_anterior = CASE WHEN n.anterior > n.precio THEN n.anterior END
+  FROM nuevos n
+  WHERE p.id = n.id;
+  GET DIAGNOSTICS v_cambiados = ROW_COUNT;
+  RETURN v_cambiados;
+END;
+$$;
+
+-- Precio = costo + % (el propio del modelo o el general). Solo los que tienen costo.
+CREATE OR REPLACE FUNCTION tienda_recalcular_precios(p_ids UUID[], p_redondeo INTEGER)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_general NUMERIC;
+  v_cambiados INTEGER;
+BEGIN
+  SELECT margen_general INTO v_general FROM tienda_ajustes WHERE id;
+  IF v_general IS NULL THEN
+    RAISE EXCEPTION 'Faltan los ajustes de la tienda';
+  END IF;
+  WITH nuevos AS (
+    SELECT id, tienda_redondear(costo * (1 + coalesce(margen, v_general) / 100), p_redondeo) AS precio
+    FROM tienda_productos
+    WHERE id = ANY(p_ids) AND costo IS NOT NULL
+  )
+  UPDATE tienda_productos p
+  SET precio = n.precio,
+      precio_anterior = CASE WHEN p.precio_anterior > n.precio THEN p.precio_anterior END
+  FROM nuevos n
+  WHERE p.id = n.id;
+  GET DIAGNOSTICS v_cambiados = ROW_COUNT;
+  RETURN v_cambiados;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION tienda_ordenar(UUID[]) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION tienda_redondear(NUMERIC, INTEGER) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION tienda_ajustar_precios(UUID[], NUMERIC, INTEGER) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION tienda_recalcular_precios(UUID[], INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION tienda_ordenar(UUID[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION tienda_redondear(NUMERIC, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION tienda_ajustar_precios(UUID[], NUMERIC, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION tienda_recalcular_precios(UUID[], INTEGER) TO authenticated;

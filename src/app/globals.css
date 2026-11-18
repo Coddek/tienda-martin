@@ -60,6 +60,11 @@ body {
   overflow-x: hidden;
 }
 
+/* Alto del cartel de arriba: una línea hasta que AnnouncementBar mide el real. */
+:root:has([data-announcement]) {
+  --announce-h: 2rem;
+}
+
 /* Lenis (solo escritorio) */
 html.lenis,
 html.lenis body {

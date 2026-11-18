@@ -8,6 +8,7 @@ import { sizePickerLabels } from "@/components/catalog/CatalogSection";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { getCatalog, getProduct } from "@/lib/catalog";
+import { getPagina } from "@/lib/pagina";
 import { formatPrice } from "@/lib/whatsapp";
 import { siteConfig } from "../../../../site.config";
 
@@ -59,18 +60,18 @@ export default function ProductPage({ params }: PageProps) {
 
 async function ProductContent({ params }: PageProps) {
   const { id } = await params;
-  const products = await getCatalog();
+  const [products, pagina] = await Promise.all([getCatalog(), getPagina()]);
   const product = products.find((p) => p.id === id);
   if (!product) notFound();
 
-  const { nav, catalog, contact, locale } = siteConfig;
+  const { nav, catalog, locale } = siteConfig;
   const related = products
     .filter((p) => p.id !== product.id)
     .sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category))
     .slice(0, 3);
 
   return (
-    <main className="mx-auto max-w-[1300px] px-5 pt-24 pb-28 lg:px-10 lg:pt-32">
+    <main className="mx-auto max-w-[1300px] px-5 pt-[calc(6rem+var(--announce-h,0px))] pb-28 lg:px-10 lg:pt-[calc(8rem+var(--announce-h,0px))]">
       <BackToCatalog
         fallbackHref={nav.catalogHref}
         homeAnchor={nav.catalogAnchor}
@@ -84,7 +85,7 @@ async function ProductContent({ params }: PageProps) {
         compareAtPrice={
           product.compareAtPrice ? formatPrice(product.compareAtPrice, locale) : undefined
         }
-        whatsapp={contact.whatsapp}
+        whatsapp={pagina.whatsapp}
         labels={{
           tags: catalog.tags,
           colorLabel: catalog.colorLabel,
@@ -99,8 +100,8 @@ async function ProductContent({ params }: PageProps) {
           shared: catalog.shared,
         }}
       >
-        {catalog.paymentNote ? (
-          <p className="mt-6 text-sm font-medium text-ink">{catalog.paymentNote}</p>
+        {pagina.paymentNote ? (
+          <p className="mt-6 text-sm font-medium text-ink">{pagina.paymentNote}</p>
         ) : null}
         <ol className="mt-8 space-y-2 border-t border-mint pt-6 text-sm text-ink-soft">
           {catalog.howToBuy.map((step, i) => (

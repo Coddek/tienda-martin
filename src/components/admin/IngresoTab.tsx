@@ -17,12 +17,15 @@ import {
 import type { CutoutResult } from "@/lib/cutout";
 import { photoPublicUrl } from "@/lib/supabase-browser";
 import { PhotoPicker } from "./PhotoPicker";
+import { PriceFields, priceFields, type PriceValues } from "./PriceFields";
 import { Scanner } from "./Scanner";
 import { btn, Card, ErrorText, Field, formatPesos, inputClass, SizeGrid, Stepper } from "./ui";
 
 type Props = {
   productos: Producto[];
   categorias: string[];
+  /** % general para sugerir el precio de los modelos nuevos. */
+  margenGeneral: number;
   /** Después de guardar: recarga la lista y refresca la página pública. */
   onSaved: () => Promise<void>;
 };
@@ -48,7 +51,7 @@ type Last = { productoId: string; colorId: string } | null;
  * se elige de qué modelo y color es (o se crea el modelo con su foto) una sola
  * vez; desde ahí ese código se reconoce siempre.
  */
-export function IngresoTab({ productos, categorias, onSaved }: Props) {
+export function IngresoTab({ productos, categorias, margenGeneral, onSaved }: Props) {
   const [step, setStep] = useState<Step>({ kind: "scan" });
   const [last, setLast] = useState<Last>(null);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +132,14 @@ export function IngresoTab({ productos, categorias, onSaved }: Props) {
       ) : null}
 
       {step.kind === "newModel" ? (
-        <NewModel code={step.code} categorias={categorias} onCancel={again} onError={setError} onDone={finish} />
+        <NewModel
+          code={step.code}
+          categorias={categorias}
+          margenGeneral={margenGeneral}
+          onCancel={again}
+          onError={setError}
+          onDone={finish}
+        />
       ) : null}
 
       {step.kind === "done" ? (
@@ -554,12 +564,14 @@ function NewColorFields({
 export function NewModel({
   code,
   categorias,
+  margenGeneral,
   onCancel,
   onError,
   onDone,
 }: {
   code: string;
   categorias: string[];
+  margenGeneral: number;
   onCancel: () => void;
   onError: (msg: string | null) => void;
   onDone: DoneFn;
@@ -567,7 +579,7 @@ export function NewModel({
   const [nombre, setNombre] = useState("");
   const [ref, setRef] = useState("");
   const [categoria, setCategoria] = useState(categorias[0] ?? "");
-  const [precio, setPrecio] = useState("");
+  const [prices, setPrices] = useState<PriceValues>({ costo: "", margen: "", precio: "" });
   const [colorName, setColorName] = useState("");
   const [colorCode, setColorCode] = useState("");
   const [swatch, setSwatch] = useState("#1E1E1E");
@@ -581,7 +593,7 @@ export function NewModel({
     if (p) setSwatch(p.swatch);
   }, []);
 
-  const price = Number(precio.replace(/\D/g, ""));
+  const { costo, margen, precio: price } = priceFields(prices);
   const missing = [
     !nombre.trim() && "el nombre",
     !ref.trim() && "la referencia",
@@ -602,6 +614,8 @@ export function NewModel({
         ref: ref.trim(),
         categoria: categoria.trim(),
         precio: price,
+        costo,
+        margen,
       });
       const foto = await subirFoto(producto.slug, colorName, photo);
       const color = await crearColor({
@@ -650,15 +664,7 @@ export function NewModel({
           ))}
         </datalist>
       </Field>
-      <Field label="Precio (en pesos)">
-        <input
-          inputMode="numeric"
-          value={precio}
-          onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
-          placeholder="89900"
-          className={inputClass}
-        />
-      </Field>
+      <PriceFields values={prices} onChange={setPrices} margenGeneral={margenGeneral} />
 
       <NewColorFields
         name={colorName}

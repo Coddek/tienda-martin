@@ -20,6 +20,8 @@ export type Color = {
   foto_path: string | null;
   foto_ancho: number | null;
   foto_alto: number | null;
+  /** false = este color no se ve en la página. */
+  activo: boolean;
   orden: number;
   talles: Talle[];
 };
@@ -34,6 +36,10 @@ export type Producto = {
   categoria: string;
   precio: number;
   precio_anterior: number | null;
+  /** Costo de lista (privado: nunca sale en la página). */
+  costo: number | null;
+  /** % de ganancia propio; null = el general de los ajustes. */
+  margen: number | null;
   etiqueta: Etiqueta | null;
   destacado: boolean;
   activo: boolean;
@@ -147,6 +153,8 @@ export async function crearProducto(fields: {
   ref: string;
   categoria: string;
   precio: number;
+  costo: number | null;
+  margen: number | null;
 }): Promise<Omit<Producto, "colores">> {
   const base = slugify(`${fields.nombre} ${fields.ref}`) || `modelo-${Date.now()}`;
   const { data, error } = await db()
@@ -215,7 +223,7 @@ export async function crearColor(fields: {
 
 export async function actualizarColor(
   id: string,
-  patch: Partial<Pick<Color, "nombre" | "muestra" | "codigo_color">> & { foto?: FotoSubida },
+  patch: Partial<Pick<Color, "nombre" | "muestra" | "codigo_color" | "activo">> & { foto?: FotoSubida },
 ) {
   const { foto, ...rest } = patch;
   const { error } = await db()
@@ -241,6 +249,57 @@ export async function loadMovimientos(limit = 80): Promise<Movimiento[]> {
     .limit(limit);
   if (error) fail(error, "No se pudo cargar el historial");
   return data as unknown as Movimiento[];
+}
+
+/** Ajustes de la tienda (una sola fila). Lo vacío usa lo de site.config.ts. */
+export type Ajustes = {
+  margen_general: number;
+  anuncio_texto: string | null;
+  anuncio_activo: boolean;
+  whatsapp: string | null;
+  instagram: string | null;
+  direccion: string | null;
+  horario: string | null;
+  medios_pago: string | null;
+};
+
+export async function loadAjustes(): Promise<Ajustes> {
+  const { data, error } = await db()
+    .from("tienda_ajustes")
+    .select("margen_general, anuncio_texto, anuncio_activo, whatsapp, instagram, direccion, horario, medios_pago")
+    .maybeSingle();
+  if (error) fail(error, "No se pudieron cargar los ajustes");
+  if (!data) throw new Error("Faltan los ajustes de la tienda: hay que correr el SQL actualizado.");
+  return { ...(data as Ajustes), margen_general: Number((data as Ajustes).margen_general) };
+}
+
+export async function guardarAjustes(patch: Partial<Ajustes>) {
+  const { error } = await db().from("tienda_ajustes").update(patch).eq("id", true);
+  if (error) fail(error, "No se pudieron guardar los ajustes");
+}
+
+/** Orden del catálogo (y de los destacados): ids en el orden nuevo. */
+export async function ordenar(ids: string[]) {
+  const { error } = await db().rpc("tienda_ordenar", { p_ids: ids });
+  if (error) fail(error, "No se pudo guardar el orden");
+}
+
+/** Sube (o baja) un % los precios de esos modelos, redondeando para arriba. */
+export async function ajustarPrecios(ids: string[], porcentaje: number, redondeo: number): Promise<number> {
+  const { data, error } = await db().rpc("tienda_ajustar_precios", {
+    p_ids: ids,
+    p_porcentaje: porcentaje,
+    p_redondeo: redondeo,
+  });
+  if (error) fail(error, "No se pudieron cambiar los precios");
+  return data as number;
+}
+
+/** Precio = costo + % (propio o general), para los que tienen costo. */
+export async function recalcularPrecios(ids: string[], redondeo: number): Promise<number> {
+  const { data, error } = await db().rpc("tienda_recalcular_precios", { p_ids: ids, p_redondeo: redondeo });
+  if (error) fail(error, "No se pudieron recalcular los precios");
+  return data as number;
 }
 
 /** "Sandalia Paris 6291.900" → "sandalia-paris-6291-900" (la dirección de la ficha). */

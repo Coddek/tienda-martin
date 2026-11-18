@@ -4,6 +4,7 @@ import { siteConfig } from "../../site.config";
 import { FavoritesBar } from "@/components/catalog/FavoritesBar";
 import { WhatsAppFab } from "@/components/layout/WhatsAppFab";
 import { getCatalog } from "@/lib/catalog";
+import { getPagina } from "@/lib/pagina";
 import { themeVars } from "@/lib/theme";
 import { whatsappLink } from "@/lib/whatsapp";
 import { display, ui } from "./fonts";
@@ -31,7 +32,8 @@ export const viewport: Viewport = {
  * queda bloqueada si la consulta tarda (por ejemplo, con la caché vacía).
  */
 async function FavoritesBarWithCatalog() {
-  const products = (await getCatalog()).map(({ id, name, ref, image, variants }) => ({
+  const [catalog, { whatsapp }] = await Promise.all([getCatalog(), getPagina()]);
+  const products = catalog.map(({ id, name, ref, image, variants }) => ({
     id,
     name,
     ref,
@@ -41,9 +43,20 @@ async function FavoritesBarWithCatalog() {
   return (
     <FavoritesBar
       products={products}
-      whatsapp={siteConfig.contact.whatsapp}
+      whatsapp={whatsapp}
       labels={siteConfig.catalog.favorites}
       sizeLabel={siteConfig.catalog.sizeLabel}
+    />
+  );
+}
+
+/** El número sale de los ajustes del editor: también va dentro de <Suspense>. */
+async function WhatsAppFabWithNumber() {
+  const { whatsapp } = await getPagina();
+  return (
+    <WhatsAppFab
+      label={siteConfig.whatsappFab.label}
+      href={whatsappLink(whatsapp, siteConfig.whatsappFab.message, {})}
     />
   );
 }
@@ -62,10 +75,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <FavoritesBarWithCatalog />
         </Suspense>
-        <WhatsAppFab
-          label={siteConfig.whatsappFab.label}
-          href={whatsappLink(siteConfig.contact.whatsapp, siteConfig.whatsappFab.message, {})}
-        />
+        <Suspense fallback={null}>
+          <WhatsAppFabWithNumber />
+        </Suspense>
       </body>
     </html>
   );

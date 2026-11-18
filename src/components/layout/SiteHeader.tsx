@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { WordmarkImage } from "@/components/brand/Wordmark";
+import { getPagina } from "@/lib/pagina";
+import { AnnouncementBar } from "./AnnouncementBar";
 
 type Props = {
   name: string;
@@ -12,28 +15,40 @@ type Props = {
 
 /**
  * Encabezado fijo, visible desde el primer segundo: quien ya conoce el local
- * entra directo al catálogo sin pasar por el recorrido.
+ * entra directo al catálogo sin pasar por el recorrido. Arriba, el cartel que
+ * se prende desde el editor (si hay).
  */
 export function SiteHeader({ name, homeHref, catalogLabel, catalogHref, tone }: Props) {
   const dark = tone === "dark";
   return (
     <header
       data-site-header
-      className={`fixed inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-3 lg:px-10 lg:py-4 ${
+      className={`fixed inset-x-0 top-0 z-30 ${
         dark
           ? "text-paper transition-colors duration-300 motion-reduce:absolute data-[solid]:bg-paper data-[solid]:text-ink"
           : "border-b border-mint bg-paper text-ink"
       }`}
     >
-      <Link href={homeHref} className="block py-2" aria-label={name}>
-        <WordmarkImage label={name} className="h-5 lg:h-7" />
-      </Link>
-      <Link
-        href={catalogHref}
-        className="inline-flex min-h-11 items-center rounded-full bg-rust px-5 text-sm font-semibold tracking-[0.12em] text-paper uppercase transition-transform hover:scale-[1.04]"
-      >
-        {catalogLabel}
-      </Link>
+      {/* Aparte: si Supabase tarda, el encabezado se ve igual y el cartel llega después. */}
+      <Suspense fallback={null}>
+        <Announcement />
+      </Suspense>
+      <div className="flex items-center justify-between px-5 py-3 lg:px-10 lg:py-4">
+        <Link href={homeHref} className="block py-2" aria-label={name}>
+          <WordmarkImage label={name} className="h-5 lg:h-7" />
+        </Link>
+        <Link
+          href={catalogHref}
+          className="inline-flex min-h-11 items-center rounded-full bg-rust px-5 text-sm font-semibold tracking-[0.12em] text-paper uppercase transition-transform hover:scale-[1.04]"
+        >
+          {catalogLabel}
+        </Link>
+      </div>
     </header>
   );
+}
+
+async function Announcement() {
+  const { announcement } = await getPagina();
+  return announcement ? <AnnouncementBar text={announcement} /> : null;
 }

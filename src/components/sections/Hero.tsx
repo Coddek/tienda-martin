@@ -18,7 +18,7 @@ type Props = {
 export function Hero({ eyebrow, tagline, wordmark, wordmarkNote, scrollHint }: Props) {
   return (
     <section data-hero className="relative h-[125svh] motion-reduce:h-svh">
-      <div className="sticky top-0 flex h-svh flex-col justify-between px-5 pt-20 pb-7 lg:px-10 lg:pt-24 lg:pb-8">
+      <div className="sticky top-0 flex h-svh flex-col justify-between px-5 pt-[calc(5rem+var(--announce-h,0px))] pb-7 lg:px-10 lg:pt-[calc(6rem+var(--announce-h,0px))] lg:pb-8">
         <div
           data-hero-fade
           className="flex items-start justify-between gap-6 text-xs font-medium tracking-[0.18em] text-mint-soft uppercase lg:text-sm"

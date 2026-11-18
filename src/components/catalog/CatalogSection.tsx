@@ -1,5 +1,6 @@
 import type { ElementType } from "react";
 import { categoriesOf, getCatalog, sizesOf } from "@/lib/catalog";
+import { getPagina } from "@/lib/pagina";
 import { siteConfig } from "../../../site.config";
 import { CatalogGrid } from "./CatalogGrid";
 
@@ -18,8 +19,8 @@ type Props = {
 
 /** Catálogo completo: título, aviso de ejemplo, cómo comprar y la grilla con filtros. */
 export async function CatalogSection({ headingAs: Heading = "h2", className }: Props) {
-  const { catalog, contact, locale, preview } = siteConfig;
-  const products = await getCatalog();
+  const { catalog, locale, preview } = siteConfig;
+  const [products, pagina] = await Promise.all([getCatalog(), getPagina()]);
   return (
     <div className={`mx-auto max-w-[1300px] px-5 lg:px-10 ${className ?? ""}`}>
       <p className="text-xs font-medium tracking-[0.18em] text-ink-soft uppercase lg:text-sm">
@@ -35,8 +36,8 @@ export async function CatalogSection({ headingAs: Heading = "h2", className }: P
         </p>
       ) : null}
 
-      {catalog.paymentNote ? (
-        <p className="mt-4 text-sm font-medium text-ink">{catalog.paymentNote}</p>
+      {pagina.paymentNote ? (
+        <p className="mt-4 text-sm font-medium text-ink">{pagina.paymentNote}</p>
       ) : null}
 
       <ol className="mt-6 mb-4 grid gap-3 sm:grid-cols-3">
@@ -73,7 +74,7 @@ export async function CatalogSection({ headingAs: Heading = "h2", className }: P
           cta: catalog.cta,
           whatsappMessage: catalog.whatsappMessage,
         }}
-        whatsapp={contact.whatsapp}
+        whatsapp={pagina.whatsapp}
         locale={locale}
       />
     </div>

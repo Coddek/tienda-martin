@@ -6,6 +6,7 @@ import { Hero } from "@/components/sections/Hero";
 import { Marquee } from "@/components/sections/Marquee";
 import { Runway, type RunwayItem } from "@/components/sections/Runway";
 import { getCatalog } from "@/lib/catalog";
+import { getPagina } from "@/lib/pagina";
 import { formatPrice } from "@/lib/whatsapp";
 import { siteConfig } from "../../site.config";
 
@@ -14,10 +15,9 @@ import { siteConfig } from "../../site.config";
  * Quien vuelve a comprar toca "Catálogo" arriba y baja directo a la grilla.
  */
 export default async function Home() {
-  const { name, nav, hero, wordmark, featured, marquee, catalog, footer, contact, locale, preview } =
-    siteConfig;
+  const { name, nav, hero, wordmark, featured, marquee, catalog, footer, locale, preview } = siteConfig;
 
-  const products = await getCatalog();
+  const [products, contact] = await Promise.all([getCatalog(), getPagina()]);
   // Los marcados como destacados; si no hay ninguno, los primeros del catálogo.
   const marked = products.filter((product) => product.featured);
   const items: RunwayItem[] = (marked.length > 0 ? marked : products.slice(0, 4)).map(

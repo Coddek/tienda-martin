@@ -20,7 +20,7 @@ export default function CatalogPage() {
         catalogHref={nav.catalogHref}
       />
       <main>
-        <CatalogSection headingAs="h1" className="pt-24 pb-24 lg:pt-32" />
+        <CatalogSection headingAs="h1" className="pt-[calc(6rem+var(--announce-h,0px))] pb-24 lg:pt-[calc(8rem+var(--announce-h,0px))]" />
       </main>
     </div>
   );
